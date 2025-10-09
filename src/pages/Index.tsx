@@ -8,6 +8,7 @@ import { toast } from "sonner";
 const Index = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string>();
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [videoInfo, setVideoInfo] = useState({
     duration: "00:05",
     resolution: "1920x1080",
@@ -52,13 +53,18 @@ const Index = () => {
       {/* Header */}
       <header className="h-16 bg-card border-b border-border flex items-center px-6">
         <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-          GenAI Video Editor
+          GenAI Video Editor Prototype
         </h1>
       </header>
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        <PromptSidebar onGenerate={handleGenerate} isGenerating={isGenerating} />
+        <PromptSidebar 
+          onGenerate={handleGenerate} 
+          isGenerating={isGenerating}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        />
         
         <div className="flex-1 flex flex-col">
           <VideoPreview videoUrl={videoUrl} isGenerating={isGenerating} />
