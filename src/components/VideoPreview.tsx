@@ -1,13 +1,10 @@
 import { Play, Pause, Volume2, VolumeX, Maximize } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { useVideoStore } from "@/store/videoStore";
 
-interface VideoPreviewProps {
-  videoUrl?: string;
-  isGenerating: boolean;
-}
-
-export const VideoPreview = ({ videoUrl, isGenerating }: VideoPreviewProps) => {
+export const VideoPreview = () => {
+  const { videoUrl, isGenerating } = useVideoStore();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
 

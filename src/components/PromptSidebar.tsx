@@ -1,26 +1,15 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
-import { toast } from "sonner";
+import { useVideoStore } from "@/store/videoStore";
 
 interface PromptSidebarProps {
-  onGenerate: (prompt: string) => void;
-  isGenerating: boolean;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
 }
 
-export const PromptSidebar = ({ onGenerate, isGenerating, isCollapsed, onToggleCollapse }: PromptSidebarProps) => {
-  const [prompt, setPrompt] = useState("");
-
-  const handleGenerate = () => {
-    if (!prompt.trim()) {
-      toast.error("Please enter a prompt");
-      return;
-    }
-    onGenerate(prompt);
-  };
+export const PromptSidebar = ({ isCollapsed, onToggleCollapse }: PromptSidebarProps) => {
+  const { prompt, setPrompt, generateVideo, isGenerating } = useVideoStore();
 
   return (
     <div className={`${isCollapsed ? 'w-16' : 'w-80'} bg-card border-r border-border transition-all duration-300 flex flex-col gap-6 relative`}>
@@ -56,7 +45,7 @@ export const PromptSidebar = ({ onGenerate, isGenerating, isCollapsed, onToggleC
             </div>
 
             <Button
-              onClick={handleGenerate}
+              onClick={generateVideo}
               disabled={isGenerating || !prompt.trim()}
               className="w-full bg-gradient-primary hover:opacity-90 transition-opacity font-semibold"
               size="lg"
