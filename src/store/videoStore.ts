@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface VideoStore {
   prompt: string;
@@ -28,12 +29,16 @@ export const useVideoStore = create<VideoStore>((set, get) => ({
     toast.info("Starting video generation...");
     
     try {
-      // Simulate generation time (3 seconds)
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Set sample video URL
+      // Call the backend API endpoint
+      const { data, error } = await supabase.functions.invoke('generate', {
+        body: { prompt }
+      });
+
+      if (error) throw error;
+
+      // Set the video URL from API response
       set({ 
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+        videoUrl: data.output_url,
         isGenerating: false 
       });
       
