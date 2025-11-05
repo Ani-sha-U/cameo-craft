@@ -29,12 +29,13 @@ serve(async (req) => {
 
     // Call Hugging Face zeroscope-v2-xl model for text-to-video (updated endpoint)
     const response = await fetch(
-      "https://router.huggingface.co/hf-inference/models/cerspense/zeroscope_v2_xl",
+      "https://router.huggingface.co/hf-inference/models/cerspense/zeroscope_v2_XL",
       {
         method: "POST",
         headers: {
           Authorization: `Bearer ${HF_TOKEN}`,
           "Content-Type": "application/json",
+          Accept: "application/octet-stream",
         },
         body: JSON.stringify({
           inputs: `A short video of ${prompt}`
@@ -44,11 +45,23 @@ serve(async (req) => {
 
     console.log('HF API response status:', response.status);
 
+    // Handle model warmup (202 Accepted) and loading (503)
+    if (response.status === 202) {
+      const info = await response.text();
+      console.warn('Model warming up (202):', info);
+      return new Response(
+        JSON.stringify({ 
+          error: "Model is warming up, please try again in ~20-30s",
+          status: 'loading'
+        }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('HF API error:', response.status, errorText);
       
-      // Handle model loading errors
       if (response.status === 503) {
         return new Response(
           JSON.stringify({ 
@@ -75,7 +88,7 @@ serve(async (req) => {
       JSON.stringify({ 
         output_url: `data:video/mp4;base64,${base64}`,
         status: 'success',
-        model: 'cerspense/zeroscope_v2_xl'
+        model: 'cerspense/zeroscope_v2_XL'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
