@@ -27,9 +27,9 @@ serve(async (req) => {
       throw new Error('HF_TOKEN is not configured');
     }
 
-    // Call Hugging Face zeroscope-v2-xl model for text-to-video
+    // Call Hugging Face zeroscope-v2-xl model for text-to-video (updated endpoint)
     const response = await fetch(
-      "https://api-inference.huggingface.co/models/cerspense/zeroscope_v2_xl",
+      "https://router.huggingface.co/hf-inference/models/cerspense/zeroscope_v2_xl",
       {
         method: "POST",
         headers: {
