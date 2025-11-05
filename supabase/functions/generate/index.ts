@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import Replicate from "https://esm.sh/replicate@0.25.2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -6,7 +7,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -14,17 +14,45 @@ serve(async (req) => {
   try {
     const { prompt } = await req.json();
     
-    console.log('Received prompt:', prompt);
+    if (!prompt) {
+      return new Response(
+        JSON.stringify({ error: "Missing required field: prompt" }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    // For now, return a fixed demo video URL
-    // This will later be replaced with actual Veo 3 API integration
-    const sampleVideoURL = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
-    
-    // Simulate processing delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    console.log('Generating video with prompt:', prompt);
+
+    const REPLICATE_API_TOKEN = Deno.env.get('REPLICATE_API_TOKEN');
+    if (!REPLICATE_API_TOKEN) {
+      throw new Error('REPLICATE_API_TOKEN is not configured');
+    }
+
+    const replicate = new Replicate({ auth: REPLICATE_API_TOKEN });
+
+    // Using Replicate's stable-video-diffusion for video generation
+    const output = await replicate.run(
+      "stability-ai/stable-video-diffusion",
+      {
+        input: {
+          cond_aug: 0.02,
+          decoding_t: 14,
+          input_image: `https://api.replicate.com/v1/predictions?prompt=${encodeURIComponent(prompt)}`,
+          video_length: "14_frames_with_svd",
+          sizing_strategy: "maintain_aspect_ratio",
+          motion_bucket_id: 127,
+          frames_per_second: 6
+        }
+      }
+    );
+
+    console.log('Video generation complete:', output);
 
     return new Response(
-      JSON.stringify({ output_url: sampleVideoURL }),
+      JSON.stringify({ 
+        output_url: Array.isArray(output) ? output[0] : output,
+        status: 'success'
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
@@ -33,7 +61,10 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in generate function:', error);
     return new Response(
-      JSON.stringify({ error: (error as Error).message }),
+      JSON.stringify({ 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        status: 'error'
+      }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
