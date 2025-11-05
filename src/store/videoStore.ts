@@ -26,7 +26,7 @@ export const useVideoStore = create<VideoStore>((set, get) => ({
     }
     
     set({ isGenerating: true });
-    toast.info("Starting video generation...");
+    toast.info("Starting video generation with Hugging Face...");
     
     try {
       // Call the backend API endpoint
@@ -34,7 +34,16 @@ export const useVideoStore = create<VideoStore>((set, get) => ({
         body: { prompt }
       });
 
-      if (error) throw error;
+      if (error) {
+        // Check for model loading errors
+        if (error.message?.includes('loading')) {
+          toast.error("Model is loading, please try again in 20-30 seconds");
+        } else {
+          throw error;
+        }
+        set({ isGenerating: false });
+        return;
+      }
 
       // Set the video URL from API response
       set({ 

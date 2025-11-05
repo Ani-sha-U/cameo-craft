@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import Replicate from "https://esm.sh/replicate@0.25.2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,33 +20,62 @@ serve(async (req) => {
       );
     }
 
-    console.log('Generating video with prompt:', prompt);
+    console.log('Generating video with Hugging Face, prompt:', prompt);
 
-    const REPLICATE_API_TOKEN = Deno.env.get('REPLICATE_API_TOKEN');
-    if (!REPLICATE_API_TOKEN) {
-      throw new Error('REPLICATE_API_TOKEN is not configured');
+    const HF_TOKEN = Deno.env.get('HF_TOKEN');
+    if (!HF_TOKEN) {
+      throw new Error('HF_TOKEN is not configured');
     }
 
-    const replicate = new Replicate({ auth: REPLICATE_API_TOKEN });
-
-    // Using Google Veo 3 Fast for text-to-video generation
-    const output = await replicate.run(
-      "google/veo-3-fast",
+    // Call Hugging Face zeroscope-v2-xl model for text-to-video
+    const response = await fetch(
+      "https://api-inference.huggingface.co/models/cerspense/zeroscope_v2_xl",
       {
-        input: {
-          prompt: prompt,
-          aspect_ratio: "16:9",
-          duration: 5
-        }
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${HF_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          inputs: `A short video of ${prompt}`
+        }),
       }
     );
 
-    console.log('Video generation complete:', output);
+    console.log('HF API response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('HF API error:', response.status, errorText);
+      
+      // Handle model loading errors
+      if (response.status === 503) {
+        return new Response(
+          JSON.stringify({ 
+            error: "Model is loading, please try again in 20-30 seconds",
+            status: 'loading'
+          }),
+          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      throw new Error(`Video generation failed: ${errorText}`);
+    }
+
+    // Get the video as blob
+    const videoBlob = await response.blob();
+    
+    // Convert blob to base64 for JSON response
+    const arrayBuffer = await videoBlob.arrayBuffer();
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+
+    console.log('Video generated successfully, size:', videoBlob.size);
 
     return new Response(
       JSON.stringify({ 
-        output_url: Array.isArray(output) ? output[0] : output,
-        status: 'success'
+        output_url: `data:video/mp4;base64,${base64}`,
+        status: 'success',
+        model: 'cerspense/zeroscope_v2_xl'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
