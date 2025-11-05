@@ -30,18 +30,14 @@ serve(async (req) => {
 
     const replicate = new Replicate({ auth: REPLICATE_API_TOKEN });
 
-    // Using Replicate's stable-video-diffusion for video generation
+    // Using Google Veo 3 Fast for text-to-video generation
     const output = await replicate.run(
-      "stability-ai/stable-video-diffusion",
+      "google/veo-3-fast",
       {
         input: {
-          cond_aug: 0.02,
-          decoding_t: 14,
-          input_image: `https://api.replicate.com/v1/predictions?prompt=${encodeURIComponent(prompt)}`,
-          video_length: "14_frames_with_svd",
-          sizing_strategy: "maintain_aspect_ratio",
-          motion_bucket_id: 127,
-          frames_per_second: 6
+          prompt: prompt,
+          aspect_ratio: "16:9",
+          duration: 5
         }
       }
     );
