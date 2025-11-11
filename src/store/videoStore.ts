@@ -3,41 +3,49 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
 interface VideoStore {
-  prompt: string;
+  imageFile: File | null;
   videoUrl: string | undefined;
   isGenerating: boolean;
-  setPrompt: (prompt: string) => void;
+  setImageFile: (file: File | null) => void;
   generateVideo: () => Promise<void>;
 }
 
 export const useVideoStore = create<VideoStore>((set, get) => ({
-  prompt: '',
+  imageFile: null,
   videoUrl: undefined,
   isGenerating: false,
   
-  setPrompt: (prompt: string) => set({ prompt }),
+  setImageFile: (file: File | null) => set({ imageFile: file }),
   
   generateVideo: async () => {
-    const { prompt } = get();
+    const { imageFile } = get();
     
-    if (!prompt.trim()) {
-      toast.error("Please enter a prompt");
+    if (!imageFile) {
+      toast.error("Please upload an image");
       return;
     }
     
     set({ isGenerating: true });
-    toast.info("Starting video generation with Hugging Face...");
+    toast.info("Generating video...");
     
     try {
+      // Convert image to base64
+      const reader = new FileReader();
+      const base64Image = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(imageFile);
+      });
+
       // Call the backend API endpoint
       const { data, error } = await supabase.functions.invoke('generate', {
-        body: { prompt }
+        body: { image: base64Image }
       });
 
       if (error) {
         // Check for model loading errors
-        if (error.message?.includes('loading')) {
-          toast.error("Model is loading, please try again in 20-30 seconds");
+        if (error.message?.includes('warming up') || error.message?.includes('retry after 20')) {
+          toast.error("Model is warming up — please retry after 20 seconds");
         } else {
           throw error;
         }

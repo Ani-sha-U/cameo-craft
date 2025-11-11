@@ -11,47 +11,48 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt } = await req.json();
+    const { image } = await req.json();
     
-    if (!prompt) {
+    if (!image) {
       return new Response(
-        JSON.stringify({ error: "Missing required field: prompt" }),
+        JSON.stringify({ error: "Missing required field: image" }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Generating video with Hugging Face, prompt:', prompt);
+    console.log('Generating video with Hugging Face Stable Video Diffusion');
 
     const HF_TOKEN = Deno.env.get('HF_TOKEN');
     if (!HF_TOKEN) {
       throw new Error('HF_TOKEN is not configured');
     }
 
-    // Call Hugging Face zeroscope-v2-xl model for text-to-video (updated endpoint)
+    // Convert base64 image to binary
+    const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
+    const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+
+    // Call Hugging Face Stable Video Diffusion image-to-video model
     const response = await fetch(
-      "https://router.huggingface.co/hf-inference/models/cerspense/zeroscope-v2-xl",
+      "https://api-inference.huggingface.co/models/stabilityai/stable-video-diffusion-img2vid-xt",
       {
         method: "POST",
         headers: {
           Authorization: `Bearer ${HF_TOKEN}`,
-          "Content-Type": "application/json",
-          Accept: "application/octet-stream",
+          "Content-Type": "application/octet-stream",
         },
-        body: JSON.stringify({
-          inputs: `A short video of ${prompt}`
-        }),
+        body: binaryData,
       }
     );
 
     console.log('HF API response status:', response.status);
 
-    // Handle model warmup (202 Accepted) and loading (503)
-    if (response.status === 202) {
-      const info = await response.text();
-      console.warn('Model warming up (202):', info);
+    // Handle model warmup (503)
+    if (response.status === 503) {
+      const errorText = await response.text();
+      console.warn('Model loading (503):', errorText);
       return new Response(
         JSON.stringify({ 
-          error: "Model is warming up, please try again in ~20-30s",
+          error: "Model is warming up — please retry after 20 seconds",
           status: 'loading'
         }),
         { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -61,17 +62,6 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('HF API error:', response.status, errorText);
-      
-      if (response.status === 503) {
-        return new Response(
-          JSON.stringify({ 
-            error: "Model is loading, please try again in 20-30 seconds",
-            status: 'loading'
-          }),
-          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
       throw new Error(`Video generation failed: ${errorText}`);
     }
 
@@ -88,7 +78,7 @@ serve(async (req) => {
       JSON.stringify({ 
         output_url: `data:video/mp4;base64,${base64}`,
         status: 'success',
-        model: 'cerspense/zeroscope_v2_xl'
+        model: 'stabilityai/stable-video-diffusion-img2vid-xt'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
