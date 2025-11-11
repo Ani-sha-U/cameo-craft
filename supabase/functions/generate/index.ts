@@ -39,6 +39,9 @@ serve(async (req) => {
         headers: {
           Authorization: `Bearer ${HF_TOKEN}`,
           "Content-Type": "application/octet-stream",
+          Accept: "video/mp4",
+          "X-Wait-For-Model": "true",
+          "X-Use-Cache": "false",
         },
         body: binaryData,
       }

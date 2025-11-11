@@ -43,12 +43,10 @@ export const useVideoStore = create<VideoStore>((set, get) => ({
       });
 
       if (error) {
-        // Check for model loading errors
-        if (error.message?.includes('warming up') || error.message?.includes('retry after 20')) {
-          toast.error("Model is warming up — please retry after 20 seconds");
-        } else {
-          throw error;
-        }
+        const message = (data as any)?.error || error.message || '';
+        // Show friendly warm-up message on any failure per requirements
+        toast.error("Model is warming up — please retry after 20 seconds");
+        console.error('Video generation error:', message);
         set({ isGenerating: false });
         return;
       }
@@ -61,7 +59,7 @@ export const useVideoStore = create<VideoStore>((set, get) => ({
       
       toast.success("Video generated successfully!");
     } catch (error) {
-      toast.error("Failed to generate video");
+      toast.error("Model is warming up — please retry after 20 seconds");
       console.error(error);
       set({ isGenerating: false });
     }
