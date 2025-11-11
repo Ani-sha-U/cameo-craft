@@ -29,7 +29,7 @@ serve(async (req) => {
 
     // Call Hugging Face zeroscope-v2-xl model for text-to-video (updated endpoint)
     const response = await fetch(
-      "https://router.huggingface.co/hf-inference/models/cerspense/zeroscope_v2_XL",
+      "https://router.huggingface.co/hf-inference/models/cerspense/zeroscope-v2-xl",
       {
         method: "POST",
         headers: {
@@ -88,7 +88,7 @@ serve(async (req) => {
       JSON.stringify({ 
         output_url: `data:video/mp4;base64,${base64}`,
         status: 'success',
-        model: 'cerspense/zeroscope_v2_XL'
+        model: 'cerspense/zeroscope_v2_xl'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
