@@ -33,7 +33,7 @@ serve(async (req) => {
 
     // Call Hugging Face Stable Video Diffusion image-to-video model
     const response = await fetch(
-      "https://api-inference.huggingface.co/models/stabilityai/stable-video-diffusion-img2vid-xt",
+      "https://router.huggingface.co/hf-inference/models/stabilityai/stable-video-diffusion-img2vid-xt",
       {
         method: "POST",
         headers: {
