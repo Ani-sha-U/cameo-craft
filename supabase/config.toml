@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.expandPrompt]
 verify_jwt = false
+
+[functions.camera-transform]
+verify_jwt = false
