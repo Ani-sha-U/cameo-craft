@@ -2,17 +2,12 @@ import { useState } from "react";
 import { PromptSidebar } from "@/components/PromptSidebar";
 import { VideoPreview } from "@/components/VideoPreview";
 import { Timeline } from "@/components/Timeline";
-import { InfoPanel } from "@/components/InfoPanel";
 import { SegmentationPanel } from "@/components/SegmentationPanel";
+import { CameraToolbar } from "@/components/CameraToolbar";
+import { CameraKeyframeTimeline } from "@/components/CameraKeyframeTimeline";
 
 const Index = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [videoInfo] = useState({
-    duration: "00:05",
-    resolution: "1920x1080",
-    fps: 30,
-    format: "MP4",
-  });
 
   return (
     <div className="flex flex-col h-screen bg-background">
@@ -32,7 +27,11 @@ const Index = () => {
         
         <div className="flex-1 flex flex-col">
           <VideoPreview />
-          <Timeline />
+          <div className="p-4 space-y-3">
+            <CameraToolbar />
+            <CameraKeyframeTimeline />
+            <Timeline />
+          </div>
         </div>
 
         <SegmentationPanel />
