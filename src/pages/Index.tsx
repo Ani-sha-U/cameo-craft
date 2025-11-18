@@ -3,6 +3,7 @@ import { PromptSidebar } from "@/components/PromptSidebar";
 import { VideoPreview } from "@/components/VideoPreview";
 import { Timeline } from "@/components/Timeline";
 import { InfoPanel } from "@/components/InfoPanel";
+import { SegmentationPanel } from "@/components/SegmentationPanel";
 
 const Index = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -34,7 +35,7 @@ const Index = () => {
           <Timeline />
         </div>
 
-        <InfoPanel videoInfo={videoInfo} />
+        <SegmentationPanel />
       </div>
     </div>
   );
