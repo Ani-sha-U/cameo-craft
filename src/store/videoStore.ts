@@ -30,35 +30,65 @@ export const useVideoStore = create<VideoStore>((set, get) => ({
     }
     
     set({ isGenerating: true });
-    toast.info("Generating video...");
+    toast.info("Starting video generation...");
     
     try {
-      // Call the backend API endpoint
-      const { data, error } = await supabase.functions.invoke('generate', {
+      // Start video generation
+      const { data: startData, error: startError } = await supabase.functions.invoke('generate', {
         body: { prompt, duration }
       });
 
-      if (error) {
-        const message = (data as any)?.error || error.message || 'Unknown error';
-        toast.error(`Video generation failed`, {
-          description: message.includes('429') 
-            ? 'Rate limit exceeded. Please try again in a moment.' 
-            : message.includes('402')
-            ? 'Insufficient credits. Please add more credits to continue.'
-            : message || 'Please check your prompt and try again.',
+      if (startError || !startData?.prediction_id) {
+        const message = (startData as any)?.error || startError?.message || 'Unknown error';
+        toast.error(`Failed to start generation`, {
+          description: message,
         });
-        console.error('Video generation error:', message);
+        console.error('Generation start error:', message);
         set({ isGenerating: false });
         return;
       }
 
-      // Set the video URL from API response
-      set({ 
-        videoUrl: data.video_url,
-        isGenerating: false 
-      });
+      const predictionId = startData.prediction_id;
+      console.log('Video generation started:', predictionId);
       
-      toast.success("Video generated successfully!");
+      // Poll for completion
+      const pollInterval = setInterval(async () => {
+        try {
+          const { data: statusData, error: statusError } = await supabase.functions.invoke('generate', {
+            body: { predictionId }
+          });
+
+          if (statusError) {
+            clearInterval(pollInterval);
+            toast.error("Failed to check generation status");
+            set({ isGenerating: false });
+            return;
+          }
+
+          console.log('Status:', statusData.status);
+
+          if (statusData.status === 'succeeded') {
+            clearInterval(pollInterval);
+            set({ 
+              videoUrl: statusData.video_url,
+              isGenerating: false 
+            });
+            toast.success("Video generated successfully!");
+          } else if (statusData.status === 'failed') {
+            clearInterval(pollInterval);
+            toast.error("Video generation failed", {
+              description: statusData.error || 'Unknown error'
+            });
+            set({ isGenerating: false });
+          }
+        } catch (error) {
+          clearInterval(pollInterval);
+          toast.error("Failed to check status");
+          console.error(error);
+          set({ isGenerating: false });
+        }
+      }, 3000); // Poll every 3 seconds
+
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to generate video");
       console.error(error);

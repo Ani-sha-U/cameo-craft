@@ -12,17 +12,8 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, duration = 5 } = await req.json();
+    const { prompt, duration = 5, predictionId } = await req.json();
     
-    if (!prompt) {
-      return new Response(
-        JSON.stringify({ error: "Missing required field: prompt" }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('Generating video with Replicate minimax/video-01, prompt:', prompt);
-
     const REPLICATE_API_TOKEN = Deno.env.get('REPLICATE_API_TOKEN');
     if (!REPLICATE_API_TOKEN) {
       throw new Error('REPLICATE_API_TOKEN is not configured');
@@ -32,26 +23,50 @@ serve(async (req) => {
       auth: REPLICATE_API_TOKEN,
     });
 
-    // Start video generation with minimax/video-01
-    const output = await replicate.run(
-      "minimax/video-01",
-      {
-        input: {
-          prompt: prompt,
-          duration: duration
+    // If predictionId is provided, check status
+    if (predictionId) {
+      console.log('Checking status for prediction:', predictionId);
+      const prediction = await replicate.predictions.get(predictionId);
+      console.log('Prediction status:', prediction.status);
+      
+      return new Response(
+        JSON.stringify({
+          status: prediction.status,
+          video_url: prediction.output,
+          error: prediction.error
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
         }
+      );
+    }
+
+    // Otherwise, start new video generation
+    if (!prompt) {
+      return new Response(
+        JSON.stringify({ error: "Missing required field: prompt" }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Starting video generation with minimax/video-01, prompt:', prompt);
+
+    // Start prediction (non-blocking)
+    const prediction = await replicate.predictions.create({
+      version: "minimax/video-01",
+      input: {
+        prompt: prompt,
+        duration: duration
       }
-    );
+    });
 
-    console.log('Video generation response:', output);
-
-    // The output should be a URL to the generated video
-    const videoUrl = Array.isArray(output) ? output[0] : output;
+    console.log('Prediction started:', prediction.id);
 
     return new Response(
       JSON.stringify({ 
-        status: 'success',
-        video_url: videoUrl
+        status: 'processing',
+        prediction_id: prediction.id
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
