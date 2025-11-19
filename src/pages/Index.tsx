@@ -8,18 +8,26 @@ import { ElementsPanel } from "@/components/ElementsPanel";
 import { ElementsCanvas } from "@/components/ElementsCanvas";
 import { RenderDialog } from "@/components/RenderDialog";
 import { AssetLibrary } from "@/components/AssetLibrary";
+import { CanvasEditor } from "@/components/CanvasEditor";
+import { ProjectMenu } from "@/components/ProjectMenu";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Index = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isAssetLibraryCollapsed, setIsAssetLibraryCollapsed] = useState(false);
+  const [activeTab, setActiveTab] = useState<'preview' | 'canvas'>('preview');
 
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Header */}
       <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
-        <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-          GenAI Video Editor Prototype
-        </h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            GenAI Video Editor
+          </h1>
+          <ProjectMenu />
+        </div>
         <RenderDialog />
       </header>
 
@@ -36,10 +44,22 @@ const Index = () => {
         />
         
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 min-h-0 overflow-auto relative">
-            <VideoPreview />
-            <ElementsCanvas />
-          </div>
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 flex flex-col">
+            <TabsList className="mx-4 mt-2 w-fit">
+              <TabsTrigger value="preview">Preview</TabsTrigger>
+              <TabsTrigger value="canvas">Canvas Editor</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="preview" className="flex-1 min-h-0 overflow-auto relative m-0">
+              <VideoPreview />
+              <ElementsCanvas />
+            </TabsContent>
+
+            <TabsContent value="canvas" className="flex-1 min-h-0 m-0">
+              <CanvasEditor />
+            </TabsContent>
+          </Tabs>
+
           <div className="p-2 space-y-2 border-t border-border bg-card/50">
             <CameraToolbar />
             <CameraKeyframeTimeline />
