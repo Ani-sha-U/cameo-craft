@@ -27,6 +27,7 @@ interface FramesStore {
   updateFrameElements: (frameId: string, elements: Element[]) => void;
   updateFrameCanvasState: (frameId: string, canvasState: Partial<Frame['canvasState']>) => void;
   duplicateFrame: (frameId: string) => void;
+  deleteFrame: (frameId: string) => void;
   clearFrames: () => void;
   setIsExtracting: (isExtracting: boolean) => void;
   setIsPlaying: (isPlaying: boolean) => void;
@@ -97,6 +98,26 @@ export const useFramesStore = create<FramesStore>((set, get) => ({
     ];
 
     set({ frames: newFrames, selectedFrameId: newFrame.id });
+  },
+
+  deleteFrame: (frameId) => {
+    const state = get();
+    const newFrames = state.frames.filter((f) => f.id !== frameId);
+    
+    // If we deleted the selected frame, select another one
+    let newSelectedId = state.selectedFrameId;
+    if (state.selectedFrameId === frameId) {
+      if (newFrames.length > 0) {
+        const deletedIndex = state.frames.findIndex((f) => f.id === frameId);
+        // Try to select the next frame, or the previous if it was the last
+        const nextIndex = Math.min(deletedIndex, newFrames.length - 1);
+        newSelectedId = newFrames[nextIndex]?.id || null;
+      } else {
+        newSelectedId = null;
+      }
+    }
+    
+    set({ frames: newFrames, selectedFrameId: newSelectedId });
   },
 
   clearFrames: () => {
