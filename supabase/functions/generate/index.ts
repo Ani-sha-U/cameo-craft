@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import Replicate from "https://esm.sh/replicate@0.25.2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,77 +12,46 @@ serve(async (req) => {
   }
 
   try {
-    const { image } = await req.json();
+    const { prompt } = await req.json();
     
-    if (!image) {
+    if (!prompt) {
       return new Response(
-        JSON.stringify({ error: "Missing required field: image" }),
+        JSON.stringify({ error: "Missing required field: prompt" }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Generating video with Hugging Face Stable Video Diffusion');
+    console.log('Generating video with Replicate minimax/video-01, prompt:', prompt);
 
-    const HF_TOKEN = Deno.env.get('HF_TOKEN');
-    if (!HF_TOKEN) {
-      throw new Error('HF_TOKEN is not configured');
+    const REPLICATE_API_TOKEN = Deno.env.get('REPLICATE_API_TOKEN');
+    if (!REPLICATE_API_TOKEN) {
+      throw new Error('REPLICATE_API_TOKEN is not configured');
     }
 
-    // Convert base64 image to binary
-    const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
-    const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+    const replicate = new Replicate({
+      auth: REPLICATE_API_TOKEN,
+    });
 
-    // Call Hugging Face Stable Video Diffusion image-to-video model
-    const response = await fetch(
-      "https://router.huggingface.co/hf-inference/models/stabilityai/stable-video-diffusion-img2vid-xt",
+    // Start video generation with minimax/video-01
+    const output = await replicate.run(
+      "minimax/video-01",
       {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${HF_TOKEN}`,
-          "Content-Type": "application/octet-stream",
-          Accept: "video/mp4",
-          "X-Wait-For-Model": "true",
-          "X-Use-Cache": "false",
-        },
-        body: binaryData,
+        input: {
+          prompt: prompt
+        }
       }
     );
 
-    console.log('HF API response status:', response.status);
+    console.log('Video generation response:', output);
 
-    // Handle model warmup (503)
-    if (response.status === 503) {
-      const errorText = await response.text();
-      console.warn('Model loading (503):', errorText);
-      return new Response(
-        JSON.stringify({ 
-          error: "Model is warming up — please retry after 20 seconds",
-          status: 'loading'
-        }),
-        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('HF API error:', response.status, errorText);
-      throw new Error(`Video generation failed: ${errorText}`);
-    }
-
-    // Get the video as blob
-    const videoBlob = await response.blob();
-    
-    // Convert blob to base64 for JSON response
-    const arrayBuffer = await videoBlob.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-
-    console.log('Video generated successfully, size:', videoBlob.size);
+    // The output should be a URL to the generated video
+    const videoUrl = Array.isArray(output) ? output[0] : output;
 
     return new Response(
       JSON.stringify({ 
-        output_url: `data:video/mp4;base64,${base64}`,
+        output_url: videoUrl,
         status: 'success',
-        model: 'stabilityai/stable-video-diffusion-img2vid-xt'
+        model: 'minimax/video-01'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
