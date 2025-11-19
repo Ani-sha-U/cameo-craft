@@ -166,9 +166,11 @@ export const Timeline = () => {
       {/* Toolbar */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Film className="h-4 w-4 text-primary" />
-          <span className="text-sm font-semibold">Timeline</span>
-          <div className="h-4 w-px bg-border mx-1" />
+          <div className="flex items-center gap-2 px-2">
+            <Film className="h-4 w-4 text-primary" />
+            <span className="text-xs font-medium">Step 9: Timeline Editing</span>
+          </div>
+          <div className="h-4 w-px bg-border" />
           
           <Button
             size="sm"

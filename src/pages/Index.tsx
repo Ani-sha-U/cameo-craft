@@ -10,6 +10,7 @@ import { RenderDialog } from "@/components/RenderDialog";
 import { AssetLibrary } from "@/components/AssetLibrary";
 import { CanvasEditor } from "@/components/CanvasEditor";
 import { ProjectMenu } from "@/components/ProjectMenu";
+import { WelcomeDialog } from "@/components/WelcomeDialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -20,12 +21,17 @@ const Index = () => {
 
   return (
     <div className="flex flex-col h-screen bg-background">
+      <WelcomeDialog />
+      
       {/* Header */}
       <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-            GenAI Video Editor
-          </h1>
+          <div>
+            <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+              GenAI Video Editor
+            </h1>
+            <p className="text-xs text-muted-foreground">Canva + Blender + Runway</p>
+          </div>
           <ProjectMenu />
         </div>
         <RenderDialog />

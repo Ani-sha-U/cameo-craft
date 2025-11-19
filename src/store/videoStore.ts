@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useTimelineStore } from './timelineStore';
+import { useAssetsStore } from './assetsStore';
 
 interface VideoStore {
   prompt: string;
@@ -69,11 +71,24 @@ export const useVideoStore = create<VideoStore>((set, get) => ({
 
           if (statusData.status === 'succeeded') {
             clearInterval(pollInterval);
+            const videoUrl = statusData.video_url;
             set({ 
-              videoUrl: statusData.video_url,
+              videoUrl,
               isGenerating: false 
             });
-            toast.success("Video generated successfully!");
+            
+            // Auto-add to timeline
+            useTimelineStore.getState().addClip(videoUrl, `Generated: ${prompt.slice(0, 30)}...`);
+            
+            // Add to asset library
+            useAssetsStore.getState().addGeneratedAsset({
+              id: `generated-${Date.now()}`,
+              name: `Generated Video ${new Date().toLocaleTimeString()}`,
+              category: 'custom',
+              imageUrl: videoUrl, // For videos, we use the URL directly
+            });
+            
+            toast.success("Video generated and added to timeline!");
           } else if (statusData.status === 'failed') {
             clearInterval(pollInterval);
             toast.error("Video generation failed", {

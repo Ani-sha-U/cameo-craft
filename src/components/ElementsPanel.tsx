@@ -28,10 +28,13 @@ export const ElementsPanel = () => {
   return (
     <div className="w-80 bg-card border-l border-border flex flex-col">
       <div className="p-4 border-b border-border">
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-3">
           <Layers className="w-5 h-5 text-primary" />
           <h2 className="text-xl font-semibold">Elements</h2>
         </div>
+        <p className="text-xs text-muted-foreground mb-3">
+          Step 6: Separate foreground/background layers
+        </p>
         
         <Button 
           onClick={handleSeparate}
@@ -42,10 +45,10 @@ export const ElementsPanel = () => {
           {isProcessing ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Processing...
+              Separating...
             </>
           ) : (
-            "Separate Elements"
+            "🔮 Separate Elements"
           )}
         </Button>
       </div>
