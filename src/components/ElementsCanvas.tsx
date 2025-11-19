@@ -32,6 +32,50 @@ export const ElementsCanvas = () => {
     setDragging(null);
   };
 
+  const handleCanvasDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    
+    const assetId = e.dataTransfer.getData('assetId');
+    if (!assetId) return;
+
+    const { useAssetsStore } = require('@/store/assetsStore');
+    const { assets } = useAssetsStore.getState();
+    const asset = assets.find((a: any) => a.id === assetId);
+    
+    if (!asset) return;
+
+    // Get drop position relative to canvas
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const { addElement } = useElementsStore.getState();
+    const newElement = {
+      id: `element-${Date.now()}`,
+      label: asset.name,
+      image: asset.imageUrl,
+      x: x - 100, // Center on cursor
+      y: y - 100,
+      width: 200,
+      height: 200,
+      rotation: 0,
+      opacity: 100,
+      blur: 0,
+      brightness: 100,
+      glow: 0,
+    };
+
+    addElement(newElement);
+    
+    const { toast } = require('sonner');
+    toast.success(`Added ${asset.name} to canvas`);
+  };
+
+  const handleCanvasDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
   useEffect(() => {
     if (dragging) {
       window.addEventListener('mousemove', handleMouseMove);
@@ -48,8 +92,10 @@ export const ElementsCanvas = () => {
   return (
     <div 
       ref={canvasRef}
-      className="absolute inset-0 pointer-events-none"
+      className="absolute inset-0 pointer-events-auto"
       style={{ zIndex: 10 }}
+      onDrop={handleCanvasDrop}
+      onDragOver={handleCanvasDragOver}
     >
       {elements.map((element) => (
         <div

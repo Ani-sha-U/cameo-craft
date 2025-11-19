@@ -22,6 +22,7 @@ interface ElementsStore {
   selectedElementId: string | null;
   isProcessing: boolean;
   setSelectedElement: (id: string | null) => void;
+  addElement: (element: Element) => void;
   updateElement: (id: string, updates: Partial<Element>) => void;
   separateElements: (videoUrl: string) => Promise<void>;
   removeElement: (id: string) => void;
@@ -33,6 +34,13 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
   isProcessing: false,
 
   setSelectedElement: (id) => set({ selectedElementId: id }),
+
+  addElement: (element) => {
+    set((state) => ({
+      elements: [...state.elements, element],
+      selectedElementId: element.id,
+    }));
+  },
 
   updateElement: (id, updates) => {
     set((state) => ({
