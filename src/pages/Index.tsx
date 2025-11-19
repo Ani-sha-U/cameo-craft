@@ -2,7 +2,6 @@ import { useState } from "react";
 import { PromptSidebar } from "@/components/PromptSidebar";
 import { VideoPreview } from "@/components/VideoPreview";
 import { Timeline } from "@/components/Timeline";
-import { SegmentationPanel } from "@/components/SegmentationPanel";
 import { CameraToolbar } from "@/components/CameraToolbar";
 import { CameraKeyframeTimeline } from "@/components/CameraKeyframeTimeline";
 
@@ -35,8 +34,6 @@ const Index = () => {
             <Timeline />
           </div>
         </div>
-
-        <SegmentationPanel />
       </div>
     </div>
   );
