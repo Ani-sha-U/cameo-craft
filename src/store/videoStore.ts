@@ -39,8 +39,14 @@ export const useVideoStore = create<VideoStore>((set, get) => ({
       });
 
       if (error) {
-        const message = (data as any)?.error || error.message || '';
-        toast.error(`Video generation failed: ${message}`);
+        const message = (data as any)?.error || error.message || 'Unknown error';
+        toast.error(`Video generation failed`, {
+          description: message.includes('429') 
+            ? 'Rate limit exceeded. Please try again in a moment.' 
+            : message.includes('402')
+            ? 'Insufficient credits. Please add more credits to continue.'
+            : message || 'Please check your prompt and try again.',
+        });
         console.error('Video generation error:', message);
         set({ isGenerating: false });
         return;
