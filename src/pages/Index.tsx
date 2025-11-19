@@ -7,8 +7,11 @@ import { CameraKeyframeTimeline } from "@/components/CameraKeyframeTimeline";
 import { ElementsPanel } from "@/components/ElementsPanel";
 import { ElementsCanvas } from "@/components/ElementsCanvas";
 import { FrameStrip } from "@/components/FrameStrip";
+import { FramePlayback } from "@/components/FramePlayback";
+import { OnionSkinControls } from "@/components/OnionSkinControls";
 import { RenderDialog } from "@/components/RenderDialog";
 import { AssetLibrary } from "@/components/AssetLibrary";
+import { ElementPropertiesPanel } from "@/components/ElementPropertiesPanel";
 import { CanvasEditor } from "@/components/CanvasEditor";
 import { ProjectMenu } from "@/components/ProjectMenu";
 import { WelcomeDialog } from "@/components/WelcomeDialog";
@@ -69,13 +72,18 @@ const Index = () => {
 
           <div className="p-2 space-y-2 border-t border-border bg-card/50">
             <FrameStrip />
+            <OnionSkinControls />
+            <FramePlayback />
             <CameraToolbar />
             <CameraKeyframeTimeline />
             <Timeline />
           </div>
         </div>
 
-        <ElementsPanel />
+        <div className="w-80 bg-card border-l border-border flex flex-col overflow-hidden">
+          <ElementsPanel />
+          <ElementPropertiesPanel />
+        </div>
       </div>
     </div>
   );

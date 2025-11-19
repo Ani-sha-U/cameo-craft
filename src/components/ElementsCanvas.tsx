@@ -1,16 +1,39 @@
-import { useElementsStore } from "@/store/elementsStore";
+import { useElementsStore, Element } from "@/store/elementsStore";
 import { useFramesStore } from "@/store/framesStore";
 import { useRef, useEffect, useState } from "react";
 
 export const ElementsCanvas = () => {
   const { elements, selectedElementId, setSelectedElement, updateElement } = useElementsStore();
-  const { frames, selectedFrameId, updateFrameElements } = useFramesStore();
+  const { frames, selectedFrameId, updateFrameElements, onionSkinEnabled, onionSkinRange } = useFramesStore();
   const canvasRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState<{ id: string; startX: number; startY: number } | null>(null);
 
   // Get current frame's elements
   const currentFrame = frames.find((f) => f.id === selectedFrameId);
   const displayElements = selectedFrameId && currentFrame ? currentFrame.elements : elements;
+
+  // Get onion skin frames
+  const currentFrameIndex = frames.findIndex((f) => f.id === selectedFrameId);
+  const onionSkinFrames: { frame: typeof frames[0]; opacity: number }[] = [];
+  
+  if (onionSkinEnabled && currentFrameIndex !== -1) {
+    for (let i = 1; i <= onionSkinRange; i++) {
+      // Previous frames
+      if (currentFrameIndex - i >= 0) {
+        onionSkinFrames.push({
+          frame: frames[currentFrameIndex - i],
+          opacity: 0.3 / i, // Fade out with distance
+        });
+      }
+      // Next frames
+      if (currentFrameIndex + i < frames.length) {
+        onionSkinFrames.push({
+          frame: frames[currentFrameIndex + i],
+          opacity: 0.2 / i, // Slightly less visible for future frames
+        });
+      }
+    }
+  }
 
   const handleMouseDown = (e: React.MouseEvent, elementId: string) => {
     e.preventDefault();
@@ -98,6 +121,8 @@ export const ElementsCanvas = () => {
         blur: 0,
         brightness: 100,
         glow: 0,
+        blendMode: 'normal' as const,
+        maskImage: undefined,
       };
     }
     
@@ -133,7 +158,49 @@ export const ElementsCanvas = () => {
     }
   }, [dragging, selectedFrameId, currentFrame]);
 
-  if (displayElements.length === 0) return null;
+  const renderElement = (element: Element, opacity: number = 1, isOnionSkin: boolean = false) => (
+    <div
+      key={`${element.id}_${isOnionSkin ? 'onion' : 'main'}`}
+      className={`absolute ${isOnionSkin ? 'pointer-events-none' : 'pointer-events-auto cursor-move'}`}
+      style={{
+        left: element.x,
+        top: element.y,
+        width: element.width,
+        height: element.height,
+        transform: `rotate(${element.rotation}deg)`,
+        opacity: (element.opacity / 100) * opacity,
+        filter: `blur(${element.blur}px) brightness(${element.brightness}%) drop-shadow(0 0 ${element.glow}px rgba(255, 255, 255, 0.8))`,
+        border: !isOnionSkin && selectedElementId === element.id ? '2px solid hsl(var(--primary))' : 'none',
+        mixBlendMode: element.blendMode,
+        maskImage: element.maskImage ? `url(${element.maskImage})` : undefined,
+        maskSize: 'contain',
+        maskRepeat: 'no-repeat',
+        maskPosition: 'center',
+      }}
+      onMouseDown={!isOnionSkin ? (e) => handleMouseDown(e, element.id) : undefined}
+    >
+      <img 
+        src={element.image} 
+        alt={element.label}
+        className="w-full h-full object-contain"
+        draggable={false}
+      />
+      {!isOnionSkin && selectedElementId === element.id && (
+        <>
+          {/* Resize handle */}
+          <div
+            className="absolute bottom-0 right-0 w-4 h-4 bg-primary rounded-full cursor-se-resize"
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              // TODO: Implement resize logic
+            }}
+          />
+        </>
+      )}
+    </div>
+  );
+
+  if (displayElements.length === 0 && onionSkinFrames.length === 0) return null;
 
   return (
     <div 
@@ -143,42 +210,14 @@ export const ElementsCanvas = () => {
       onDrop={handleCanvasDrop}
       onDragOver={handleCanvasDragOver}
     >
-      {displayElements.map((element) => (
-        <div
-          key={element.id}
-          className="absolute pointer-events-auto cursor-move"
-          style={{
-            left: element.x,
-            top: element.y,
-            width: element.width,
-            height: element.height,
-            transform: `rotate(${element.rotation}deg)`,
-            opacity: element.opacity / 100,
-            filter: `blur(${element.blur}px) brightness(${element.brightness}%) drop-shadow(0 0 ${element.glow}px rgba(255, 255, 255, 0.8))`,
-            border: selectedElementId === element.id ? '2px solid hsl(var(--primary))' : 'none',
-          }}
-          onMouseDown={(e) => handleMouseDown(e, element.id)}
-        >
-          <img 
-            src={element.image} 
-            alt={element.label}
-            className="w-full h-full object-contain"
-            draggable={false}
-          />
-          {selectedElementId === element.id && (
-            <>
-              {/* Resize handle */}
-              <div
-                className="absolute bottom-0 right-0 w-4 h-4 bg-primary rounded-full cursor-se-resize"
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  // TODO: Implement resize logic
-                }}
-              />
-            </>
-          )}
-        </div>
-      ))}
+      {/* Render onion skin frames first (behind current frame) */}
+      {onionSkinFrames.map(({ frame, opacity }) => 
+        frame.elements.map((element) => renderElement(element, opacity, true))
+      )}
+      
+      {/* Render current frame elements */}
+      {displayElements.map((element) => renderElement(element, 1, false))}
     </div>
   );
 };
+
