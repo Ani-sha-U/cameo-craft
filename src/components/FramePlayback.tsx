@@ -1,4 +1,5 @@
 import { useFramesStore } from "@/store/framesStore";
+import { useEditorStore } from "@/store/editorStore";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Play, Pause, SkipBack, SkipForward } from "lucide-react";
@@ -8,12 +9,12 @@ export const FramePlayback = () => {
   const { 
     frames, 
     selectedFrameId, 
-    isPlaying, 
     fps, 
     selectFrame, 
-    setIsPlaying, 
     setFps 
   } = useFramesStore();
+
+  const { isPlaying, setIsPlaying, loop, playbackSpeed } = useEditorStore();
   
   const animationRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number>(0);
@@ -29,7 +30,7 @@ export const FramePlayback = () => {
       return;
     }
 
-    const frameInterval = 1000 / fps;
+    const frameInterval = 1000 / (fps * playbackSpeed);
 
     const animate = (timestamp: number) => {
       if (!lastFrameTimeRef.current) {
@@ -39,7 +40,17 @@ export const FramePlayback = () => {
       const elapsed = timestamp - lastFrameTimeRef.current;
 
       if (elapsed >= frameInterval) {
-        const nextIndex = (currentIndex + 1) % frames.length;
+        let nextIndex = currentIndex + 1;
+        
+        if (nextIndex >= frames.length) {
+          if (loop) {
+            nextIndex = 0;
+          } else {
+            setIsPlaying(false);
+            return;
+          }
+        }
+        
         selectFrame(frames[nextIndex].id);
         lastFrameTimeRef.current = timestamp;
       }
@@ -54,7 +65,7 @@ export const FramePlayback = () => {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isPlaying, currentIndex, frames, fps, selectFrame]);
+  }, [isPlaying, currentIndex, frames, fps, playbackSpeed, loop, selectFrame, setIsPlaying]);
 
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
