@@ -7,9 +7,11 @@ import { CameraKeyframeTimeline } from "@/components/CameraKeyframeTimeline";
 import { ElementsPanel } from "@/components/ElementsPanel";
 import { ElementsCanvas } from "@/components/ElementsCanvas";
 import { RenderDialog } from "@/components/RenderDialog";
+import { AssetLibrary } from "@/components/AssetLibrary";
 
 const Index = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isAssetLibraryCollapsed, setIsAssetLibraryCollapsed] = useState(false);
 
   return (
     <div className="flex flex-col h-screen bg-background">
@@ -23,7 +25,12 @@ const Index = () => {
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        <PromptSidebar 
+        <AssetLibrary 
+          isCollapsed={isAssetLibraryCollapsed}
+          onToggleCollapse={() => setIsAssetLibraryCollapsed(!isAssetLibraryCollapsed)}
+        />
+        
+        <PromptSidebar
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         />
