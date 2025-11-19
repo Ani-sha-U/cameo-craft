@@ -18,9 +18,9 @@ export const VideoPreview = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-background">
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-4xl aspect-video bg-card rounded-xl border border-border shadow-card overflow-hidden relative">
+    <div className="h-full flex flex-col bg-background">
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="w-full max-w-3xl aspect-video bg-card rounded-lg border border-border shadow-card overflow-hidden relative">
           <div 
             className="absolute inset-0 transition-transform duration-100 ease-out"
             style={{ 

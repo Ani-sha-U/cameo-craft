@@ -45,23 +45,26 @@ export const Timeline = () => {
   };
 
   return (
-    <div className="h-32 bg-card border-t border-border p-4">
-      <div className="flex items-center gap-4 mb-2">
-        <Button variant="ghost" size="sm" className="text-foreground hover:text-primary">
-          <Film className="w-4 h-4 mr-2" />
-          Clips
-        </Button>
-        <Button variant="ghost" size="sm" className="text-foreground hover:text-primary">
-          <Scissors className="w-4 h-4 mr-2" />
-          Cut
-        </Button>
-        <Button variant="ghost" size="sm" className="text-foreground hover:text-primary">
-          <Wand2 className="w-4 h-4 mr-2" />
-          Effects
-        </Button>
+    <div className="bg-card border border-border rounded-lg p-2">
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" className="h-6 text-xs px-2">
+            <Film className="w-3 h-3 mr-1" />
+            Clips
+          </Button>
+          <Button variant="ghost" size="sm" className="h-6 text-xs px-2">
+            <Scissors className="w-3 h-3 mr-1" />
+            Cut
+          </Button>
+          <Button variant="ghost" size="sm" className="h-6 text-xs px-2">
+            <Wand2 className="w-3 h-3 mr-1" />
+            Effects
+          </Button>
+        </div>
+        <span className="text-[9px] text-muted-foreground">0:00 / 0:05</span>
       </div>
 
-      <div className="flex gap-2 h-16 bg-muted rounded-lg p-2 overflow-x-auto">
+      <div className="flex gap-1.5 h-12 bg-muted rounded-lg p-1.5 overflow-x-auto">
         {frames.map((frame) => (
           <div
             key={frame.id}
@@ -69,17 +72,11 @@ export const Timeline = () => {
             onDragStart={() => handleDragStart(frame.id)}
             onDragOver={handleDragOver}
             onDrop={() => handleDrop(frame.id)}
-            className={`${frame.color} rounded min-w-[80px] flex items-center justify-center cursor-move hover:opacity-80 transition-opacity`}
+            className={`${frame.color} rounded min-w-[60px] flex items-center justify-center cursor-move hover:opacity-80 transition-opacity`}
           >
-            <span className="text-xs text-white font-medium">{frame.label}</span>
+            <span className="text-[10px] text-white font-medium">{frame.label}</span>
           </div>
         ))}
-      </div>
-
-      <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
-        <span>0:00</span>
-        <span>Drag frames to reorder</span>
-        <span>0:05</span>
       </div>
     </div>
   );
