@@ -12,8 +12,60 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, duration = 5, predictionId } = await req.json();
+    const { prompt, duration = 5, predictionId, useMock = true } = await req.json();
     
+    // MOCK MODE - Return sample videos immediately
+    if (useMock) {
+      // Mock video URLs for testing
+      const mockVideos = [
+        'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+        'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+        'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+        'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+        'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+      ];
+      
+      if (predictionId) {
+        // Mock status check - return completed
+        console.log('Mock mode: Checking status for prediction:', predictionId);
+        const mockIndex = parseInt(predictionId.split('-')[1] || '0') % mockVideos.length;
+        
+        return new Response(
+          JSON.stringify({
+            status: 'succeeded',
+            video_url: mockVideos[mockIndex],
+            error: null
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+          }
+        );
+      }
+      
+      if (!prompt) {
+        return new Response(
+          JSON.stringify({ error: "Missing required field: prompt" }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      console.log('Mock mode: Generating video for prompt:', prompt);
+      const mockId = `mock-${Date.now()}`;
+      
+      return new Response(
+        JSON.stringify({ 
+          status: 'processing',
+          prediction_id: mockId
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
+    
+    // REAL MODE - Use Replicate API
     const REPLICATE_API_TOKEN = Deno.env.get('REPLICATE_API_TOKEN');
     if (!REPLICATE_API_TOKEN) {
       throw new Error('REPLICATE_API_TOKEN is not configured');
