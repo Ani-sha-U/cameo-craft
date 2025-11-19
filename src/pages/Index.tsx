@@ -25,9 +25,11 @@ const Index = () => {
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         />
         
-        <div className="flex-1 flex flex-col">
-          <VideoPreview />
-          <div className="p-4 space-y-3">
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-auto">
+            <VideoPreview />
+          </div>
+          <div className="p-2 space-y-2 border-t border-border bg-card/50">
             <CameraToolbar />
             <CameraKeyframeTimeline />
             <Timeline />

@@ -11,13 +11,13 @@ export const CameraKeyframeTimeline = () => {
   }
 
   return (
-    <Card className="p-3 bg-card/50 border border-border/50">
-      <div className="flex items-center gap-2 mb-2">
-        <Film className="h-4 w-4 text-primary" />
-        <span className="text-sm font-medium">Camera Keyframes</span>
+    <Card className="p-2 bg-card/50 border border-border/50">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <Film className="h-3.5 w-3.5 text-primary" />
+        <span className="text-xs font-medium">Keyframes</span>
       </div>
       
-      <div className="relative h-12 bg-muted/30 rounded border border-border">
+      <div className="relative h-8 bg-muted/30 rounded border border-border">
         {/* Timeline markers */}
         {keyframes.map((keyframe) => {
           const position = (keyframe.time / duration) * 100;
@@ -29,17 +29,16 @@ export const CameraKeyframeTimeline = () => {
               style={{ left: `${position}%` }}
             >
               <div className="relative">
-                <div className="w-3 h-3 bg-primary rounded-full border-2 border-background shadow-lg cursor-pointer hover:scale-125 transition-transform" />
+                <div className="w-2.5 h-2.5 bg-primary rounded-full border-2 border-background shadow-lg cursor-pointer hover:scale-125 transition-transform" />
                 
                 {/* Tooltip on hover */}
-                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
-                  <div className="bg-popover border border-border rounded px-2 py-1 text-xs shadow-lg">
+                <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                  <div className="bg-popover border border-border rounded px-1.5 py-1 text-[10px] shadow-lg">
                     <div className="font-medium">{(keyframe.time / 1000).toFixed(1)}s</div>
-                    <div className="text-muted-foreground text-[10px] space-y-0.5">
-                      <div>Zoom: {keyframe.transform.zoom.toFixed(2)}x</div>
-                      <div>Pan: {keyframe.transform.panX}, {keyframe.transform.panY}</div>
-                      <div>Rotate: {keyframe.transform.rotate}°</div>
-                      <div>Dolly: {keyframe.transform.dolly}</div>
+                    <div className="text-muted-foreground text-[9px] space-y-0.5">
+                      <div>Z: {keyframe.transform.zoom.toFixed(1)}x</div>
+                      <div>P: {keyframe.transform.panX}, {keyframe.transform.panY}</div>
+                      <div>R: {keyframe.transform.rotate}°</div>
                     </div>
                   </div>
                 </div>
@@ -48,10 +47,10 @@ export const CameraKeyframeTimeline = () => {
                 <Button
                   size="icon"
                   variant="destructive"
-                  className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6"
+                  className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5"
                   onClick={() => removeKeyframe(keyframe.id)}
                 >
-                  <Trash2 className="h-3 w-3" />
+                  <Trash2 className="h-2.5 w-2.5" />
                 </Button>
               </div>
             </div>
@@ -59,7 +58,7 @@ export const CameraKeyframeTimeline = () => {
         })}
       </div>
       
-      <div className="flex justify-between text-xs text-muted-foreground mt-1">
+      <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5">
         <span>0s</span>
         <span>{(duration / 1000).toFixed(1)}s</span>
       </div>

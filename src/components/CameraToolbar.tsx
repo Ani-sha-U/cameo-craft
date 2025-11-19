@@ -35,23 +35,24 @@ export const CameraToolbar = () => {
   const [showControls, setShowControls] = useState(true);
 
   return (
-    <Card className="p-4 bg-card border border-border">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Camera className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold">Virtual Camera</h3>
+    <Card className="p-2 bg-card border border-border">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5">
+          <Camera className="h-3.5 w-3.5 text-primary" />
+          <h3 className="text-xs font-semibold">Camera</h3>
         </div>
         <Button
           size="sm"
           variant="ghost"
           onClick={() => setShowControls(!showControls)}
+          className="h-6 text-xs px-2"
         >
           {showControls ? 'Hide' : 'Show'}
         </Button>
       </div>
 
       {showControls && (
-        <div className="space-y-4">
+        <div className="space-y-2 grid grid-cols-5 gap-2">
           {/* Zoom Control */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
