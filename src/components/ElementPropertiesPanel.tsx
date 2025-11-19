@@ -41,13 +41,13 @@ export const ElementPropertiesPanel = () => {
   };
 
   return (
-    <div className="p-4 border-t border-border space-y-4 max-h-96 overflow-y-auto">
+    <div className="p-2 border-t border-border space-y-2 max-h-64 overflow-y-auto">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">Element Properties</h3>
-        <span className="text-xs text-muted-foreground">{selectedElement.label}</span>
+        <h3 className="text-xs font-medium">Properties</h3>
+        <span className="text-[10px] text-muted-foreground truncate max-w-[100px]">{selectedElement.label}</span>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         <div>
           <Label className="text-xs">Opacity</Label>
           <Slider

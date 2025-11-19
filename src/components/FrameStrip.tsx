@@ -45,13 +45,13 @@ export const FrameStrip = () => {
   }
 
   return (
-    <Card className="p-4 border-t">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold">Frames ({frames.length})</h3>
+    <Card className="p-2 border-t">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-xs font-semibold">Frames ({frames.length})</h3>
         <FrameInterpolationDialog />
       </div>
-      <ScrollArea className="w-full">
-        <div className="flex gap-2 pb-2">
+      <ScrollArea className="w-full h-20">
+        <div className="flex gap-1.5 pb-1">
           {frames.map((frame, index) => (
             <div
               key={frame.id}
@@ -60,9 +60,9 @@ export const FrameStrip = () => {
               onDragOver={handleFrameDragOver}
             >
               <div
-                className={`cursor-pointer border-2 rounded-lg overflow-hidden transition-all hover:border-primary ${
+                className={`cursor-pointer border-2 rounded overflow-hidden transition-all hover:border-primary ${
                   selectedFrameId === frame.id
-                    ? 'border-primary ring-2 ring-primary/20'
+                    ? 'border-primary ring-1 ring-primary/20'
                     : 'border-border'
                 }`}
                 onClick={() => selectFrame(frame.id)}
@@ -70,33 +70,33 @@ export const FrameStrip = () => {
                 <img
                   src={frame.thumbnail}
                   alt={`Frame ${index + 1}`}
-                  className="w-32 h-20 object-cover"
+                  className="w-24 h-16 object-cover"
                 />
-                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs px-2 py-1">
-                  #{index + 1} • {frame.timestamp.toFixed(2)}s
+                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1 py-0.5">
+                  #{index + 1} • {frame.timestamp.toFixed(1)}s
                 </div>
               </div>
               
               {/* Actions */}
-              <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+              <div className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
                 <Button
                   size="icon"
                   variant="secondary"
-                  className="h-6 w-6"
+                  className="h-5 w-5"
                   onClick={(e) => {
                     e.stopPropagation();
                     duplicateFrame(frame.id);
                   }}
                   title="Duplicate frame"
                 >
-                  <Copy className="h-3 w-3" />
+                  <Copy className="h-2.5 w-2.5" />
                 </Button>
               </div>
 
               {/* Element count badge */}
               {frame.elements.length > 0 && (
-                <div className="absolute top-1 left-1 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded">
-                  {frame.elements.length} layers
+                <div className="absolute top-0.5 left-0.5 bg-primary text-primary-foreground text-[10px] px-1 py-0.5 rounded">
+                  {frame.elements.length}
                 </div>
               )}
             </div>
