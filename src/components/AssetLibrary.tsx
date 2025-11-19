@@ -100,6 +100,8 @@ export const AssetLibrary = ({ isCollapsed, onToggleCollapse }: AssetLibraryProp
       blur: 0,
       brightness: 100,
       glow: 0,
+      blendMode: 'normal' as const,
+      maskImage: undefined,
     };
 
     addElement(newElement);

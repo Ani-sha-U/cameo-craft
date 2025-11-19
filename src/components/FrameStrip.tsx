@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Copy } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { FrameInterpolationDialog } from '@/components/FrameInterpolationDialog';
 
 export const FrameStrip = () => {
   const { frames, selectedFrameId, selectFrame, duplicateFrame, updateFrameElements } = useFramesStore();
@@ -47,6 +48,7 @@ export const FrameStrip = () => {
     <Card className="p-4 border-t">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold">Frames ({frames.length})</h3>
+        <FrameInterpolationDialog />
       </div>
       <ScrollArea className="w-full">
         <div className="flex gap-2 pb-2">

@@ -15,6 +15,8 @@ export interface Element {
   blur: number;
   brightness: number;
   glow: number;
+  blendMode: 'normal' | 'multiply' | 'screen' | 'overlay' | 'darken' | 'lighten';
+  maskImage?: string;
 }
 
 interface ElementsStore {
@@ -94,6 +96,8 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
         blur: 0,
         brightness: 100,
         glow: 0,
+        blendMode: 'normal' as const,
+        maskImage: undefined,
       }));
 
       set({ elements: newElements, isProcessing: false });
