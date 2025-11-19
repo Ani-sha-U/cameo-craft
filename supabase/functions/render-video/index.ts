@@ -34,7 +34,7 @@ serve(async (req) => {
     }
     
     // Start new render job
-    const { format, clips, cameraKeyframes, elements, totalDuration } = body;
+    const { format, clips, cameraKeyframes, elements, frames, totalDuration } = body;
     
     if (!clips || clips.length === 0) {
       return new Response(
@@ -50,6 +50,7 @@ serve(async (req) => {
     console.log('Clips:', clips.length);
     console.log('Camera keyframes:', cameraKeyframes?.length || 0);
     console.log('Elements:', elements?.length || 0);
+    console.log('Frames:', frames?.length || 0);
     
     // Initialize job
     jobs.set(jobId, {
@@ -59,7 +60,7 @@ serve(async (req) => {
     });
     
     // Background processing
-    processRenderJob(jobId, clips, cameraKeyframes, elements, format);
+    processRenderJob(jobId, clips, cameraKeyframes, elements, frames, format);
     
     return new Response(
       JSON.stringify({ 
@@ -91,6 +92,7 @@ async function processRenderJob(
   clips: any[],
   cameraKeyframes: any[],
   elements: any[],
+  frames: any[],
   format: string
 ) {
   try {
@@ -121,8 +123,30 @@ async function processRenderJob(
     
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    // Step 4: Composite elements
-    if (elements && elements.length > 0) {
+    // Step 4: Process frames and composite elements
+    if (frames && frames.length > 0) {
+      jobs.set(jobId, {
+        status: 'processing',
+        progress: 70,
+        step: 'Processing frames...',
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Composite frame elements
+      const totalElements = frames.reduce((sum: number, frame: any) => 
+        sum + (frame.elements?.length || 0), 0);
+      
+      if (totalElements > 0) {
+        jobs.set(jobId, {
+          status: 'processing',
+          progress: 80,
+          step: `Compositing ${totalElements} frame layers...`,
+        });
+        
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    } else if (elements && elements.length > 0) {
       jobs.set(jobId, {
         status: 'processing',
         progress: 75,
