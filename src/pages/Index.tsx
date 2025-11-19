@@ -28,13 +28,13 @@ const Index = () => {
       <WelcomeDialog />
       
       {/* Header */}
-      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
-        <div className="flex items-center gap-4">
+      <header className="h-12 bg-card border-b border-border flex items-center justify-between px-4">
+        <div className="flex items-center gap-3">
           <div>
-            <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              GenAI Video Editor
+            <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+              Painter
             </h1>
-            <p className="text-xs text-muted-foreground">Canva + Blender + Runway</p>
+            <p className="text-[10px] text-muted-foreground">Frame-by-frame video editor</p>
           </div>
           <ProjectMenu />
         </div>
@@ -55,9 +55,9 @@ const Index = () => {
         
         <div className="flex-1 flex flex-col overflow-hidden">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 flex flex-col">
-            <TabsList className="mx-4 mt-2 w-fit">
-              <TabsTrigger value="preview">Preview</TabsTrigger>
-              <TabsTrigger value="canvas">Canvas Editor</TabsTrigger>
+            <TabsList className="mx-2 mt-1 w-fit h-8 text-xs">
+              <TabsTrigger value="preview" className="text-xs py-1">Preview</TabsTrigger>
+              <TabsTrigger value="canvas" className="text-xs py-1">Canvas Editor</TabsTrigger>
             </TabsList>
 
             <TabsContent value="preview" className="flex-1 min-h-0 overflow-auto relative m-0">
@@ -70,7 +70,7 @@ const Index = () => {
             </TabsContent>
           </Tabs>
 
-          <div className="p-2 space-y-2 border-t border-border bg-card/50">
+          <div className="p-1 space-y-1 border-t border-border bg-card/50 max-h-[40vh] overflow-y-auto">
             <FrameStrip />
             <OnionSkinControls />
             <FramePlayback />
@@ -80,7 +80,7 @@ const Index = () => {
           </div>
         </div>
 
-        <div className="w-80 bg-card border-l border-border flex flex-col overflow-hidden">
+        <div className="w-64 bg-card border-l border-border flex flex-col overflow-hidden">
           <ElementsPanel />
           <ElementPropertiesPanel />
         </div>

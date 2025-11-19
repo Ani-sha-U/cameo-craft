@@ -89,25 +89,25 @@ export const ElementsPanel = () => {
   };
 
   return (
-    <div className="w-80 bg-card border-l border-border flex flex-col">
-      <div className="p-4 border-b border-border">
-        <div className="flex items-center gap-2 mb-3">
-          <Layers className="w-5 h-5 text-primary" />
-          <h2 className="text-xl font-semibold">Elements</h2>
+    <div className="flex-1 bg-card flex flex-col overflow-hidden">
+      <div className="p-2 border-b border-border">
+        <div className="flex items-center gap-1.5 mb-2">
+          <Layers className="w-4 h-4 text-primary" />
+          <h2 className="text-sm font-semibold">Elements</h2>
         </div>
-        <p className="text-xs text-muted-foreground mb-3">
+        <p className="text-[10px] text-muted-foreground mb-2">
           Separate elements & drag to frames
         </p>
         
         <Button 
           onClick={handleSeparate}
           disabled={isProcessing || !videoUrl}
-          className="w-full"
+          className="w-full h-7 text-xs"
           size="sm"
         >
           {isProcessing ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
               Separating...
             </>
           ) : (
@@ -116,15 +116,15 @@ export const ElementsPanel = () => {
         </Button>
 
         {selectedElement && frames.length > 0 && (
-          <div className="mt-3 space-y-2">
+          <div className="mt-2 space-y-1.5">
             <Button
               onClick={handleCopyToNextFrame}
               disabled={!selectedFrameId}
               variant="outline"
               size="sm"
-              className="w-full"
+              className="w-full h-7 text-xs"
             >
-              <Copy className="mr-2 h-3 w-3" />
+              <Copy className="mr-1.5 h-3 w-3" />
               Copy to Next Frame
             </Button>
             <Button
@@ -132,9 +132,9 @@ export const ElementsPanel = () => {
               disabled={frames.length === 0}
               variant="outline"
               size="sm"
-              className="w-full"
+              className="w-full h-7 text-xs"
             >
-              <Layers className="mr-2 h-3 w-3" />
+              <Layers className="mr-1.5 h-3 w-3" />
               Copy to All Frames
             </Button>
           </div>
@@ -142,11 +142,11 @@ export const ElementsPanel = () => {
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="p-4 space-y-3">
+        <div className="p-2 space-y-1.5">
           {elements.length === 0 ? (
-            <div className="text-center text-muted-foreground text-sm py-8">
+            <div className="text-center text-muted-foreground text-xs py-4">
               <p>No elements extracted yet.</p>
-              <p className="mt-2">Generate a video first, then click "Separate Elements".</p>
+              <p className="mt-1">Generate a video first, then click "Separate Elements".</p>
             </div>
           ) : (
             elements.map((element) => (
@@ -154,22 +154,22 @@ export const ElementsPanel = () => {
                 key={element.id}
                 draggable
                 onDragStart={(e) => handleDragStart(e, element)}
-                className={`p-3 rounded-lg border cursor-grab active:cursor-grabbing transition-all ${
+                className={`p-2 rounded border cursor-grab active:cursor-grabbing transition-all ${
                   selectedElementId === element.id
                     ? 'border-primary bg-primary/10'
                     : 'border-border hover:border-primary/50'
                 }`}
                 onClick={() => setSelectedElement(element.id)}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <img 
                     src={element.image} 
                     alt={element.label}
-                    className="w-12 h-12 object-cover rounded bg-muted"
+                    className="w-10 h-10 object-cover rounded bg-muted"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{element.label}</p>
-                    <p className="text-xs text-muted-foreground">Drag to frame or canvas</p>
+                    <p className="font-medium text-xs truncate">{element.label}</p>
+                    <p className="text-[10px] text-muted-foreground">Drag to frame</p>
                   </div>
                   <Button
                     size="icon"
@@ -178,9 +178,9 @@ export const ElementsPanel = () => {
                       e.stopPropagation();
                       removeElement(element.id);
                     }}
-                    className="h-8 w-8"
+                    className="h-6 w-6"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>
               </div>

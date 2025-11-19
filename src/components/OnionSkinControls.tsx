@@ -13,21 +13,22 @@ export const OnionSkinControls = () => {
   } = useFramesStore();
 
   return (
-    <div className="flex flex-col gap-3 p-4 border-b border-border">
+    <div className="flex flex-col gap-2 p-2 border-b border-border">
       <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">Onion Skinning</Label>
+        <Label className="text-xs font-medium">Onion Skin</Label>
         <Button
           variant={onionSkinEnabled ? "default" : "outline"}
           size="sm"
+          className="h-6 text-xs"
           onClick={() => setOnionSkinEnabled(!onionSkinEnabled)}
         >
-          {onionSkinEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+          {onionSkinEnabled ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
         </Button>
       </div>
 
       {onionSkinEnabled && (
-        <div className="flex items-center gap-4">
-          <Label className="text-sm text-muted-foreground min-w-[60px]">Range:</Label>
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground min-w-[45px]">Range:</Label>
           <Slider
             value={[onionSkinRange]}
             min={1}
@@ -36,7 +37,7 @@ export const OnionSkinControls = () => {
             onValueChange={([value]) => setOnionSkinRange(value)}
             className="flex-1"
           />
-          <span className="text-sm min-w-[20px]">{onionSkinRange}</span>
+          <span className="text-xs min-w-[15px]">{onionSkinRange}</span>
         </div>
       )}
     </div>
