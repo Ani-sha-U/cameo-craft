@@ -21,20 +21,26 @@ interface CameraStore {
   isPlaying: boolean;
   currentTime: number;
   duration: number;
+  selectedKeyframeId: string | null;
   
   setZoom: (zoom: number) => void;
   setPanX: (panX: number) => void;
   setPanY: (panY: number) => void;
   setRotate: (rotate: number) => void;
   setDolly: (dolly: number) => void;
+  setCurrentTime: (time: number) => void;
   
   addKeyframe: (time: number) => void;
   removeKeyframe: (id: string) => void;
   updateKeyframe: (id: string, transform: CameraTransform) => void;
+  moveKeyframe: (id: string, newTime: number) => void;
+  selectKeyframe: (id: string | null) => void;
+  loadKeyframe: (id: string) => void;
   
   playPreview: () => void;
   stopPreview: () => void;
   resetCamera: () => void;
+  exportCameraPath: () => string;
   
   getTransformAtTime: (time: number) => CameraTransform;
 }
@@ -52,9 +58,9 @@ const easeInOutCubic = (t: number): number => {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 };
 
-// Linear interpolation
+// Linear interpolation (as requested - no easing)
 const lerp = (start: number, end: number, t: number): number => {
-  return start + (end - start) * easeInOutCubic(t);
+  return start + (end - start) * t;
 };
 
 export const useCameraStore = create<CameraStore>((set, get) => ({
@@ -63,6 +69,7 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
   isPlaying: false,
   currentTime: 0,
   duration: 5000, // 5 seconds default
+  selectedKeyframeId: null,
   
   setZoom: (zoom: number) => {
     set((state) => ({
@@ -94,6 +101,15 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
     }));
   },
   
+  setCurrentTime: (time: number) => {
+    const clampedTime = Math.max(0, Math.min(time, get().duration));
+    set({ currentTime: clampedTime });
+    
+    // Apply transform at this time
+    const transform = get().getTransformAtTime(clampedTime);
+    set({ currentTransform: transform });
+  },
+  
   addKeyframe: (time: number) => {
     const { currentTransform, keyframes } = get();
     const id = `keyframe-${Date.now()}`;
@@ -122,6 +138,31 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
         kf.id === id ? { ...kf, transform } : kf
       ),
     }));
+  },
+  
+  moveKeyframe: (id: string, newTime: number) => {
+    const clampedTime = Math.max(0, Math.min(newTime, get().duration));
+    set((state) => ({
+      keyframes: [...state.keyframes.map((kf) =>
+        kf.id === id ? { ...kf, time: clampedTime } : kf
+      )].sort((a, b) => a.time - b.time),
+    }));
+  },
+  
+  selectKeyframe: (id: string | null) => {
+    set({ selectedKeyframeId: id });
+  },
+  
+  loadKeyframe: (id: string) => {
+    const keyframe = get().keyframes.find(kf => kf.id === id);
+    if (keyframe) {
+      set({ 
+        currentTransform: { ...keyframe.transform },
+        currentTime: keyframe.time,
+        selectedKeyframeId: id,
+      });
+      toast.info(`Loaded keyframe at ${(keyframe.time / 1000).toFixed(1)}s`);
+    }
   },
   
   getTransformAtTime: (time: number): CameraTransform => {
@@ -213,7 +254,23 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
       keyframes: [],
       isPlaying: false,
       currentTime: 0,
+      selectedKeyframeId: null,
     });
     toast.success('Camera reset to defaults');
+  },
+  
+  exportCameraPath: () => {
+    const { keyframes, duration } = get();
+    const cameraPath = {
+      duration,
+      keyframes: keyframes.map(kf => ({
+        time: kf.time / 1000, // Convert to seconds for readability
+        transform: kf.transform,
+      })),
+    };
+    const json = JSON.stringify(cameraPath, null, 2);
+    toast.success('Camera path exported to clipboard');
+    navigator.clipboard.writeText(json);
+    return json;
   },
 }));
