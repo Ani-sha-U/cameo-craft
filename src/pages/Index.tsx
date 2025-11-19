@@ -16,10 +16,15 @@ import { CanvasEditor } from "@/components/CanvasEditor";
 import { ProjectMenu } from "@/components/ProjectMenu";
 import { WelcomeDialog } from "@/components/WelcomeDialog";
 import { FrameCanvas } from "@/components/FrameCanvas";
+import { TransportControls } from "@/components/TransportControls";
+import { EditingToolbar } from "@/components/EditingToolbar";
 import { useFramesStore } from "@/store/framesStore";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Index = () => {
+  useKeyboardShortcuts();
+  
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isAssetLibraryCollapsed, setIsAssetLibraryCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<'preview' | 'canvas'>('preview');
@@ -56,6 +61,7 @@ const Index = () => {
         />
         
         <div className="flex-1 flex flex-col overflow-hidden">
+          <EditingToolbar />
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 flex flex-col">
             <TabsList className="mx-2 mt-1 w-fit h-8 text-xs">
               <TabsTrigger value="preview" className="text-xs py-1">Preview</TabsTrigger>
@@ -80,10 +86,10 @@ const Index = () => {
             </TabsContent>
           </Tabs>
 
-          <div className="p-1 space-y-1 border-t border-border bg-card/50 max-h-[40vh] overflow-y-auto">
+          <div className="p-1 space-y-1 border-t border-border bg-card/50 max-h-[35vh] overflow-y-auto">
+            <TransportControls />
             <FrameStrip />
             <OnionSkinControls />
-            <FramePlayback />
             <CameraToolbar />
             <CameraKeyframeTimeline />
             <Timeline />
