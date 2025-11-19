@@ -50,46 +50,71 @@ export const ElementsCanvas = () => {
   const handleCanvasDrop = (e: React.DragEvent) => {
     e.preventDefault();
     
+    const elementId = e.dataTransfer.getData('elementId');
+    const elementData = e.dataTransfer.getData('elementData');
     const assetId = e.dataTransfer.getData('assetId');
-    if (!assetId) return;
-
-    const { useAssetsStore } = require('@/store/assetsStore');
-    const { assets } = useAssetsStore.getState();
-    const asset = assets.find((a: any) => a.id === assetId);
     
-    if (!asset) return;
+    let newElement;
+    
+    // Handle element from Elements Panel
+    if (elementData) {
+      const element = JSON.parse(elementData);
+      
+      // Get drop position relative to canvas
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      newElement = {
+        ...element,
+        id: `${element.id}_canvas_${Date.now()}`,
+        x: x - 100,
+        y: y - 100,
+      };
+    }
+    // Handle asset from Asset Library
+    else if (assetId) {
+      const { useAssetsStore } = require('@/store/assetsStore');
+      const { assets } = useAssetsStore.getState();
+      const asset = assets.find((a: any) => a.id === assetId);
+      
+      if (!asset) return;
 
-    // Get drop position relative to canvas
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+      // Get drop position relative to canvas
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
 
-    const newElement = {
-      id: `element-${Date.now()}`,
-      label: asset.name,
-      image: asset.imageUrl,
-      x: x - 100, // Center on cursor
-      y: y - 100,
-      width: 200,
-      height: 200,
-      rotation: 0,
-      opacity: 100,
-      blur: 0,
-      brightness: 100,
-      glow: 0,
-    };
+      newElement = {
+        id: `element-${Date.now()}`,
+        label: asset.name,
+        image: asset.imageUrl,
+        x: x - 100, // Center on cursor
+        y: y - 100,
+        width: 200,
+        height: 200,
+        rotation: 0,
+        opacity: 100,
+        blur: 0,
+        brightness: 100,
+        glow: 0,
+      };
+    }
+    
+    if (!newElement) return;
 
     if (selectedFrameId && currentFrame) {
       // Add to current frame
       updateFrameElements(selectedFrameId, [...currentFrame.elements, newElement]);
+      const { toast } = require('sonner');
+      toast.success(`Added element to frame`);
     } else {
       // Add to global elements
       const { addElement } = useElementsStore.getState();
       addElement(newElement);
+      const { toast } = require('sonner');
+      toast.success(`Added element to canvas`);
     }
-    
-    const { toast } = require('sonner');
-    toast.success(`Added ${asset.name} to ${selectedFrameId ? 'frame' : 'canvas'}`);
   };
 
   const handleCanvasDragOver = (e: React.DragEvent) => {

@@ -1,11 +1,43 @@
 import { useFramesStore } from '@/store/framesStore';
+import { useElementsStore } from '@/store/elementsStore';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Copy, Trash2 } from 'lucide-react';
+import { Copy } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { toast } from 'sonner';
 
 export const FrameStrip = () => {
-  const { frames, selectedFrameId, selectFrame, duplicateFrame } = useFramesStore();
+  const { frames, selectedFrameId, selectFrame, duplicateFrame, updateFrameElements } = useFramesStore();
+  const { elements } = useElementsStore();
+
+  const handleFrameDrop = (e: React.DragEvent, frameId: string) => {
+    e.preventDefault();
+    
+    const elementId = e.dataTransfer.getData('elementId');
+    const elementData = e.dataTransfer.getData('elementData');
+    
+    if (!elementData) return;
+
+    const element = JSON.parse(elementData);
+    const frame = frames.find(f => f.id === frameId);
+    
+    if (!frame) return;
+
+    const newElement = {
+      ...element,
+      id: `${element.id}_frame_${frameId}_${Date.now()}`,
+      x: 50,
+      y: 50,
+    };
+
+    updateFrameElements(frameId, [...frame.elements, newElement]);
+    toast.success(`Added ${element.label} to frame`);
+  };
+
+  const handleFrameDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
 
   if (frames.length === 0) {
     return null;
@@ -22,6 +54,8 @@ export const FrameStrip = () => {
             <div
               key={frame.id}
               className="relative flex-shrink-0 group"
+              onDrop={(e) => handleFrameDrop(e, frame.id)}
+              onDragOver={handleFrameDragOver}
             >
               <div
                 className={`cursor-pointer border-2 rounded-lg overflow-hidden transition-all hover:border-primary ${

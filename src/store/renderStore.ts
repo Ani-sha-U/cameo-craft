@@ -29,10 +29,12 @@ export const useRenderStore = create<RenderStore>((set, get) => ({
     const { useTimelineStore } = await import('./timelineStore');
     const { useCameraStore } = await import('./cameraStore');
     const { useElementsStore } = await import('./elementsStore');
+    const { useFramesStore } = await import('./framesStore');
     
     const timelineState = useTimelineStore.getState();
     const cameraState = useCameraStore.getState();
     const elementsState = useElementsStore.getState();
+    const framesState = useFramesStore.getState();
     
     if (timelineState.clips.length === 0) {
       toast.error("No clips to render");
@@ -55,6 +57,7 @@ export const useRenderStore = create<RenderStore>((set, get) => ({
         clips: timelineState.clips,
         cameraKeyframes: cameraState.keyframes,
         elements: elementsState.elements,
+        frames: framesState.frames,
         totalDuration: timelineState.totalDuration,
       };
       

@@ -1,9 +1,11 @@
 import { useElementsStore, Element } from "@/store/elementsStore";
+import { useFramesStore } from "@/store/framesStore";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Loader2, Trash2, Layers } from "lucide-react";
+import { Loader2, Trash2, Layers, Copy, ArrowRight } from "lucide-react";
 import { useVideoStore } from "@/store/videoStore";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { toast } from "sonner";
 
 export const ElementsPanel = () => {
   const { videoUrl } = useVideoStore();
@@ -17,12 +19,73 @@ export const ElementsPanel = () => {
     separateElements 
   } = useElementsStore();
 
+  const { frames, selectedFrameId, updateFrameElements } = useFramesStore();
+
   const selectedElement = elements.find(el => el.id === selectedElementId);
+  const currentFrame = frames.find(f => f.id === selectedFrameId);
+  
+  // Check if selected element is in the current frame
+  const elementInFrame = currentFrame?.elements.find(el => el.id === selectedElementId);
 
   const handleSeparate = () => {
     if (videoUrl) {
       separateElements(videoUrl);
     }
+  };
+
+  const handleDragStart = (e: React.DragEvent, element: Element) => {
+    e.dataTransfer.setData('elementId', element.id);
+    e.dataTransfer.setData('elementData', JSON.stringify(element));
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  const handleCopyToNextFrame = () => {
+    if (!selectedElementId || !selectedFrameId || !currentFrame) {
+      toast.error("No element or frame selected");
+      return;
+    }
+
+    const element = elementInFrame || selectedElement;
+    if (!element) return;
+
+    const currentIndex = frames.findIndex(f => f.id === selectedFrameId);
+    if (currentIndex === -1 || currentIndex >= frames.length - 1) {
+      toast.error("No next frame available");
+      return;
+    }
+
+    const nextFrame = frames[currentIndex + 1];
+    const newElement = {
+      ...element,
+      id: `${element.id}_copy_${Date.now()}`,
+    };
+
+    updateFrameElements(nextFrame.id, [...nextFrame.elements, newElement]);
+    toast.success(`Copied element to next frame`);
+  };
+
+  const handleCopyToAllFrames = () => {
+    if (!selectedElementId) {
+      toast.error("No element selected");
+      return;
+    }
+
+    const element = elementInFrame || selectedElement;
+    if (!element) return;
+
+    let copiedCount = 0;
+    frames.forEach((frame) => {
+      if (frame.id !== selectedFrameId) {
+        const newElement = {
+          ...element,
+          id: `${element.id}_copy_${frame.id}_${Date.now()}`,
+        };
+        updateFrameElements(frame.id, [...frame.elements, newElement]);
+        copiedCount++;
+      }
+    });
+
+    toast.success(`Copied element to ${copiedCount} frames`);
   };
 
   return (
@@ -33,7 +96,7 @@ export const ElementsPanel = () => {
           <h2 className="text-xl font-semibold">Elements</h2>
         </div>
         <p className="text-xs text-muted-foreground mb-3">
-          Step 6: Separate foreground/background layers
+          Separate elements & drag to frames
         </p>
         
         <Button 
@@ -51,6 +114,31 @@ export const ElementsPanel = () => {
             "🔮 Separate Elements"
           )}
         </Button>
+
+        {selectedElement && frames.length > 0 && (
+          <div className="mt-3 space-y-2">
+            <Button
+              onClick={handleCopyToNextFrame}
+              disabled={!selectedFrameId}
+              variant="outline"
+              size="sm"
+              className="w-full"
+            >
+              <Copy className="mr-2 h-3 w-3" />
+              Copy to Next Frame
+            </Button>
+            <Button
+              onClick={handleCopyToAllFrames}
+              disabled={frames.length === 0}
+              variant="outline"
+              size="sm"
+              className="w-full"
+            >
+              <Layers className="mr-2 h-3 w-3" />
+              Copy to All Frames
+            </Button>
+          </div>
+        )}
       </div>
 
       <ScrollArea className="flex-1">
@@ -64,7 +152,9 @@ export const ElementsPanel = () => {
             elements.map((element) => (
               <div
                 key={element.id}
-                className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                draggable
+                onDragStart={(e) => handleDragStart(e, element)}
+                className={`p-3 rounded-lg border cursor-grab active:cursor-grabbing transition-all ${
                   selectedElementId === element.id
                     ? 'border-primary bg-primary/10'
                     : 'border-border hover:border-primary/50'
@@ -79,6 +169,7 @@ export const ElementsPanel = () => {
                   />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{element.label}</p>
+                    <p className="text-xs text-muted-foreground">Drag to frame or canvas</p>
                   </div>
                   <Button
                     size="icon"
@@ -95,6 +186,34 @@ export const ElementsPanel = () => {
               </div>
             ))
           )}
+
+          {currentFrame && currentFrame.elements.length > 0 && (
+            <>
+              <div className="border-t pt-4 mt-4">
+                <h3 className="text-sm font-semibold mb-3">Frame Elements ({currentFrame.elements.length})</h3>
+                {currentFrame.elements.map((element) => (
+                  <div
+                    key={element.id}
+                    className={`p-2 mb-2 rounded-lg border cursor-pointer transition-all ${
+                      selectedElementId === element.id
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                    onClick={() => setSelectedElement(element.id)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <img 
+                        src={element.image} 
+                        alt={element.label}
+                        className="w-8 h-8 object-cover rounded bg-muted"
+                      />
+                      <p className="text-xs truncate flex-1">{element.label}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </ScrollArea>
 
@@ -105,76 +224,111 @@ export const ElementsPanel = () => {
           <div className="space-y-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground block mb-2">
-                Opacity: {selectedElement.opacity}%
+                Opacity: {elementInFrame?.opacity || selectedElement.opacity}%
               </label>
               <Slider
                 min={0}
                 max={100}
                 step={1}
-                value={[selectedElement.opacity]}
-                onValueChange={([value]) => 
-                  updateElement(selectedElement.id, { opacity: value })
-                }
+                value={[elementInFrame?.opacity || selectedElement.opacity]}
+                onValueChange={(value) => {
+                  if (elementInFrame && selectedFrameId && currentFrame) {
+                    const updated = currentFrame.elements.map(el =>
+                      el.id === selectedElementId ? { ...el, opacity: value[0] } : el
+                    );
+                    updateFrameElements(selectedFrameId, updated);
+                  } else {
+                    updateElement(selectedElementId!, { opacity: value[0] });
+                  }
+                }}
               />
             </div>
 
             <div>
               <label className="text-xs font-medium text-muted-foreground block mb-2">
-                Rotation: {selectedElement.rotation}°
+                Rotation: {elementInFrame?.rotation || selectedElement.rotation}°
               </label>
               <Slider
                 min={0}
                 max={360}
                 step={1}
-                value={[selectedElement.rotation]}
-                onValueChange={([value]) => 
-                  updateElement(selectedElement.id, { rotation: value })
-                }
+                value={[elementInFrame?.rotation || selectedElement.rotation]}
+                onValueChange={(value) => {
+                  if (elementInFrame && selectedFrameId && currentFrame) {
+                    const updated = currentFrame.elements.map(el =>
+                      el.id === selectedElementId ? { ...el, rotation: value[0] } : el
+                    );
+                    updateFrameElements(selectedFrameId, updated);
+                  } else {
+                    updateElement(selectedElementId!, { rotation: value[0] });
+                  }
+                }}
               />
             </div>
 
             <div>
               <label className="text-xs font-medium text-muted-foreground block mb-2">
-                Blur: {selectedElement.blur}px
+                Blur: {elementInFrame?.blur || selectedElement.blur}px
               </label>
               <Slider
                 min={0}
                 max={20}
                 step={1}
-                value={[selectedElement.blur]}
-                onValueChange={([value]) => 
-                  updateElement(selectedElement.id, { blur: value })
-                }
+                value={[elementInFrame?.blur || selectedElement.blur]}
+                onValueChange={(value) => {
+                  if (elementInFrame && selectedFrameId && currentFrame) {
+                    const updated = currentFrame.elements.map(el =>
+                      el.id === selectedElementId ? { ...el, blur: value[0] } : el
+                    );
+                    updateFrameElements(selectedFrameId, updated);
+                  } else {
+                    updateElement(selectedElementId!, { blur: value[0] });
+                  }
+                }}
               />
             </div>
 
             <div>
               <label className="text-xs font-medium text-muted-foreground block mb-2">
-                Brightness: {selectedElement.brightness}%
+                Brightness: {elementInFrame?.brightness || selectedElement.brightness}%
               </label>
               <Slider
                 min={0}
                 max={200}
                 step={1}
-                value={[selectedElement.brightness]}
-                onValueChange={([value]) => 
-                  updateElement(selectedElement.id, { brightness: value })
-                }
+                value={[elementInFrame?.brightness || selectedElement.brightness]}
+                onValueChange={(value) => {
+                  if (elementInFrame && selectedFrameId && currentFrame) {
+                    const updated = currentFrame.elements.map(el =>
+                      el.id === selectedElementId ? { ...el, brightness: value[0] } : el
+                    );
+                    updateFrameElements(selectedFrameId, updated);
+                  } else {
+                    updateElement(selectedElementId!, { brightness: value[0] });
+                  }
+                }}
               />
             </div>
 
             <div>
               <label className="text-xs font-medium text-muted-foreground block mb-2">
-                Glow: {selectedElement.glow}px
+                Glow: {elementInFrame?.glow || selectedElement.glow}px
               </label>
               <Slider
                 min={0}
                 max={50}
                 step={1}
-                value={[selectedElement.glow]}
-                onValueChange={([value]) => 
-                  updateElement(selectedElement.id, { glow: value })
-                }
+                value={[elementInFrame?.glow || selectedElement.glow]}
+                onValueChange={(value) => {
+                  if (elementInFrame && selectedFrameId && currentFrame) {
+                    const updated = currentFrame.elements.map(el =>
+                      el.id === selectedElementId ? { ...el, glow: value[0] } : el
+                    );
+                    updateFrameElements(selectedFrameId, updated);
+                  } else {
+                    updateElement(selectedElementId!, { glow: value[0] });
+                  }
+                }}
               />
             </div>
           </div>
