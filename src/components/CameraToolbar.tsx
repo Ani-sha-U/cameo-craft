@@ -21,6 +21,7 @@ export const CameraToolbar = () => {
     isPlaying,
     currentTime,
     duration,
+    keyframes,
     setZoom,
     setPanX,
     setPanY,
@@ -168,7 +169,7 @@ export const CameraToolbar = () => {
               className="flex-1"
             >
               <Plus className="h-4 w-4 mr-1" />
-              Add Keyframe
+              Add at {(currentTime / 1000).toFixed(2)}s
             </Button>
             
             {!isPlaying ? (
@@ -177,6 +178,7 @@ export const CameraToolbar = () => {
                 variant="default"
                 onClick={playPreview}
                 className="flex-1"
+                disabled={keyframes.length === 0}
               >
                 <Play className="h-4 w-4 mr-1" />
                 Preview
