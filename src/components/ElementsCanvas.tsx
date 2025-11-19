@@ -1,14 +1,20 @@
 import { useElementsStore } from "@/store/elementsStore";
+import { useFramesStore } from "@/store/framesStore";
 import { useRef, useEffect, useState } from "react";
 
 export const ElementsCanvas = () => {
   const { elements, selectedElementId, setSelectedElement, updateElement } = useElementsStore();
+  const { frames, selectedFrameId, updateFrameElements } = useFramesStore();
   const canvasRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState<{ id: string; startX: number; startY: number } | null>(null);
 
+  // Get current frame's elements
+  const currentFrame = frames.find((f) => f.id === selectedFrameId);
+  const displayElements = selectedFrameId && currentFrame ? currentFrame.elements : elements;
+
   const handleMouseDown = (e: React.MouseEvent, elementId: string) => {
     e.preventDefault();
-    const element = elements.find(el => el.id === elementId);
+    const element = displayElements.find(el => el.id === elementId);
     if (!element) return;
 
     setSelectedElement(elementId);
@@ -25,7 +31,16 @@ export const ElementsCanvas = () => {
     const newX = e.clientX - dragging.startX;
     const newY = e.clientY - dragging.startY;
 
-    updateElement(dragging.id, { x: newX, y: newY });
+    if (selectedFrameId && currentFrame) {
+      // Update frame-specific elements
+      const updatedElements = currentFrame.elements.map((el) =>
+        el.id === dragging.id ? { ...el, x: newX, y: newY } : el
+      );
+      updateFrameElements(selectedFrameId, updatedElements);
+    } else {
+      // Update global elements
+      updateElement(dragging.id, { x: newX, y: newY });
+    }
   };
 
   const handleMouseUp = () => {
@@ -49,7 +64,6 @@ export const ElementsCanvas = () => {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    const { addElement } = useElementsStore.getState();
     const newElement = {
       id: `element-${Date.now()}`,
       label: asset.name,
@@ -65,10 +79,17 @@ export const ElementsCanvas = () => {
       glow: 0,
     };
 
-    addElement(newElement);
+    if (selectedFrameId && currentFrame) {
+      // Add to current frame
+      updateFrameElements(selectedFrameId, [...currentFrame.elements, newElement]);
+    } else {
+      // Add to global elements
+      const { addElement } = useElementsStore.getState();
+      addElement(newElement);
+    }
     
     const { toast } = require('sonner');
-    toast.success(`Added ${asset.name} to canvas`);
+    toast.success(`Added ${asset.name} to ${selectedFrameId ? 'frame' : 'canvas'}`);
   };
 
   const handleCanvasDragOver = (e: React.DragEvent) => {
@@ -85,9 +106,9 @@ export const ElementsCanvas = () => {
         window.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [dragging]);
+  }, [dragging, selectedFrameId, currentFrame]);
 
-  if (elements.length === 0) return null;
+  if (displayElements.length === 0) return null;
 
   return (
     <div 
@@ -97,7 +118,7 @@ export const ElementsCanvas = () => {
       onDrop={handleCanvasDrop}
       onDragOver={handleCanvasDragOver}
     >
-      {elements.map((element) => (
+      {displayElements.map((element) => (
         <div
           key={element.id}
           className="absolute pointer-events-auto cursor-move"

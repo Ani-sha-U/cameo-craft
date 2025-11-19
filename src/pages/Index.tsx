@@ -6,6 +6,7 @@ import { CameraToolbar } from "@/components/CameraToolbar";
 import { CameraKeyframeTimeline } from "@/components/CameraKeyframeTimeline";
 import { ElementsPanel } from "@/components/ElementsPanel";
 import { ElementsCanvas } from "@/components/ElementsCanvas";
+import { FrameStrip } from "@/components/FrameStrip";
 import { RenderDialog } from "@/components/RenderDialog";
 import { AssetLibrary } from "@/components/AssetLibrary";
 import { CanvasEditor } from "@/components/CanvasEditor";
@@ -67,6 +68,7 @@ const Index = () => {
           </Tabs>
 
           <div className="p-2 space-y-2 border-t border-border bg-card/50">
+            <FrameStrip />
             <CameraToolbar />
             <CameraKeyframeTimeline />
             <Timeline />
