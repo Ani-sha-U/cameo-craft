@@ -3,11 +3,11 @@ project_id = "zawuarsaqbedpukynerl"
 [functions.generate]
 verify_jwt = false
 
-[functions.removeBackground]
-verify_jwt = false
-
 [functions.expandPrompt]
 verify_jwt = false
 
 [functions.camera-transform]
+verify_jwt = false
+
+[functions.separateElements]
 verify_jwt = false
