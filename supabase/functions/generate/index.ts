@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt } = await req.json();
+    const { prompt, duration = 5 } = await req.json();
     
     if (!prompt) {
       return new Response(
@@ -37,7 +37,8 @@ serve(async (req) => {
       "minimax/video-01",
       {
         input: {
-          prompt: prompt
+          prompt: prompt,
+          duration: duration
         }
       }
     );
@@ -49,9 +50,8 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ 
-        output_url: videoUrl,
         status: 'success',
-        model: 'minimax/video-01'
+        video_url: videoUrl
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
