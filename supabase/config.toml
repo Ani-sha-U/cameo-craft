@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.separateElements]
 verify_jwt = false
+
+[functions.render-video]
+verify_jwt = false
