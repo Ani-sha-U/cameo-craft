@@ -15,13 +15,15 @@ import { ElementPropertiesPanel } from "@/components/ElementPropertiesPanel";
 import { CanvasEditor } from "@/components/CanvasEditor";
 import { ProjectMenu } from "@/components/ProjectMenu";
 import { WelcomeDialog } from "@/components/WelcomeDialog";
-import { Button } from "@/components/ui/button";
+import { FrameCanvas } from "@/components/FrameCanvas";
+import { useFramesStore } from "@/store/framesStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Index = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isAssetLibraryCollapsed, setIsAssetLibraryCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<'preview' | 'canvas'>('preview');
+  const { frames } = useFramesStore();
 
   return (
     <div className="flex flex-col h-screen bg-background">
@@ -61,7 +63,15 @@ const Index = () => {
             </TabsList>
 
             <TabsContent value="preview" className="flex-1 min-h-0 overflow-auto relative m-0">
-              <VideoPreview />
+              {frames.length > 0 ? (
+                <div className="h-full flex items-center justify-center p-4 bg-gradient-to-br from-background to-muted/20">
+                  <div className="max-w-4xl w-full">
+                    <FrameCanvas className="w-full h-auto rounded-lg shadow-2xl" />
+                  </div>
+                </div>
+              ) : (
+                <VideoPreview />
+              )}
               <ElementsCanvas />
             </TabsContent>
 

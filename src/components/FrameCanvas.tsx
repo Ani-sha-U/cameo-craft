@@ -2,12 +2,26 @@ import { useFramesStore } from '@/store/framesStore';
 import { useElementsStore } from '@/store/elementsStore';
 import { useEffect, useRef } from 'react';
 
-export const FrameCanvas = () => {
+interface FrameCanvasProps {
+  frameId?: string;
+  className?: string;
+  width?: number;
+  height?: number;
+  onFrameRendered?: (canvas: HTMLCanvasElement) => void;
+}
+
+export const FrameCanvas = ({ 
+  frameId, 
+  className = "w-full h-auto", 
+  width = 1920, 
+  height = 1080,
+  onFrameRendered 
+}: FrameCanvasProps) => {
   const { frames, selectedFrameId } = useFramesStore();
-  const { setSelectedElement } = useElementsStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const currentFrame = frames.find(f => f.id === selectedFrameId);
+  const targetFrameId = frameId || selectedFrameId;
+  const currentFrame = frames.find(f => f.id === targetFrameId);
 
   useEffect(() => {
     if (!canvasRef.current || !currentFrame) return;
@@ -23,14 +37,25 @@ export const FrameCanvas = () => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.src = currentFrame.thumbnail;
+    
     img.onload = () => {
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      // Track loaded elements
+      let loadedCount = 0;
+      const totalElements = currentFrame.elements.length;
+
+      if (totalElements === 0) {
+        onFrameRendered?.(canvas);
+        return;
+      }
 
       // Draw frame elements
       currentFrame.elements.forEach((element) => {
         const elementImg = new Image();
         elementImg.crossOrigin = 'anonymous';
         elementImg.src = element.image;
+        
         elementImg.onload = () => {
           ctx.save();
           
@@ -39,12 +64,11 @@ export const FrameCanvas = () => {
           ctx.translate(element.x + element.width / 2, element.y + element.height / 2);
           ctx.rotate((element.rotation * Math.PI) / 180);
           
-          // Apply filters (basic approach)
-          if (element.blur > 0) {
-            ctx.filter = `blur(${element.blur}px) brightness(${element.brightness}%)`;
-          } else {
-            ctx.filter = `brightness(${element.brightness}%)`;
-          }
+          // Apply filters
+          const filters = [];
+          if (element.blur > 0) filters.push(`blur(${element.blur}px)`);
+          if (element.brightness !== 100) filters.push(`brightness(${element.brightness}%)`);
+          ctx.filter = filters.length > 0 ? filters.join(' ') : 'none';
           
           ctx.drawImage(
             elementImg,
@@ -55,10 +79,15 @@ export const FrameCanvas = () => {
           );
           
           ctx.restore();
+
+          loadedCount++;
+          if (loadedCount === totalElements) {
+            onFrameRendered?.(canvas);
+          }
         };
       });
     };
-  }, [currentFrame]);
+  }, [currentFrame, width, height, onFrameRendered]);
 
   if (!currentFrame) {
     return null;
@@ -67,9 +96,9 @@ export const FrameCanvas = () => {
   return (
     <canvas
       ref={canvasRef}
-      width={800}
-      height={600}
-      className="hidden" // Hidden canvas for preview/rendering
+      width={width}
+      height={height}
+      className={className}
     />
   );
 };

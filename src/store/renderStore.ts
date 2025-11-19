@@ -36,8 +36,8 @@ export const useRenderStore = create<RenderStore>((set, get) => ({
     const elementsState = useElementsStore.getState();
     const framesState = useFramesStore.getState();
     
-    if (timelineState.clips.length === 0) {
-      toast.error("No clips to render");
+    if (timelineState.clips.length === 0 && framesState.frames.length === 0) {
+      toast.error("No clips or frames to render");
       return;
     }
     
