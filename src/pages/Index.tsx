@@ -6,6 +6,7 @@ import { CameraToolbar } from "@/components/CameraToolbar";
 import { CameraKeyframeTimeline } from "@/components/CameraKeyframeTimeline";
 import { ElementsPanel } from "@/components/ElementsPanel";
 import { ElementsCanvas } from "@/components/ElementsCanvas";
+import { RenderDialog } from "@/components/RenderDialog";
 
 const Index = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -13,10 +14,11 @@ const Index = () => {
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="h-16 bg-card border-b border-border flex items-center px-6">
+      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
         <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
           GenAI Video Editor Prototype
         </h1>
+        <RenderDialog />
       </header>
 
       {/* Main Content */}
