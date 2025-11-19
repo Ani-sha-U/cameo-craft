@@ -4,21 +4,25 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface VideoStore {
   prompt: string;
+  duration: number;
   videoUrl: string | undefined;
   isGenerating: boolean;
   setPrompt: (prompt: string) => void;
+  setDuration: (duration: number) => void;
   generateVideo: () => Promise<void>;
 }
 
 export const useVideoStore = create<VideoStore>((set, get) => ({
   prompt: '',
+  duration: 5,
   videoUrl: undefined,
   isGenerating: false,
   
   setPrompt: (prompt: string) => set({ prompt }),
+  setDuration: (duration: number) => set({ duration }),
   
   generateVideo: async () => {
-    const { prompt } = get();
+    const { prompt, duration } = get();
     
     if (!prompt.trim()) {
       toast.error("Please enter a prompt");
@@ -31,7 +35,7 @@ export const useVideoStore = create<VideoStore>((set, get) => ({
     try {
       // Call the backend API endpoint
       const { data, error } = await supabase.functions.invoke('generate', {
-        body: { prompt }
+        body: { prompt, duration }
       });
 
       if (error) {
@@ -44,7 +48,7 @@ export const useVideoStore = create<VideoStore>((set, get) => ({
 
       // Set the video URL from API response
       set({ 
-        videoUrl: data.output_url,
+        videoUrl: data.video_url,
         isGenerating: false 
       });
       

@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Slider } from "@/components/ui/slider";
 import { useVideoStore } from "@/store/videoStore";
 import { ChevronLeft, ChevronRight, Loader2, Video } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +11,7 @@ interface PromptSidebarProps {
 }
 
 export const PromptSidebar = ({ isCollapsed, onToggleCollapse }: PromptSidebarProps) => {
-  const { prompt, setPrompt, generateVideo, isGenerating } = useVideoStore();
+  const { prompt, setPrompt, duration, setDuration, generateVideo, isGenerating } = useVideoStore();
 
   return (
     <div className={`${isCollapsed ? 'w-16' : 'w-80'} bg-card border-r border-border transition-all duration-300 flex flex-col gap-6 relative`}>
@@ -47,6 +48,22 @@ export const PromptSidebar = ({ isCollapsed, onToggleCollapse }: PromptSidebarPr
                 onChange={(e) => setPrompt(e.target.value)}
                 className="min-h-[120px] resize-none"
                 disabled={isGenerating}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor="duration-slider" className="text-sm font-medium text-foreground">
+                Duration: {duration} seconds
+              </label>
+              <Slider
+                id="duration-slider"
+                min={3}
+                max={10}
+                step={1}
+                value={[duration]}
+                onValueChange={(value) => setDuration(value[0])}
+                disabled={isGenerating}
+                className="w-full"
               />
             </div>
 
