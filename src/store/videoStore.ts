@@ -3,25 +3,25 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
 interface VideoStore {
-  imageFile: File | null;
+  prompt: string;
   videoUrl: string | undefined;
   isGenerating: boolean;
-  setImageFile: (file: File | null) => void;
+  setPrompt: (prompt: string) => void;
   generateVideo: () => Promise<void>;
 }
 
 export const useVideoStore = create<VideoStore>((set, get) => ({
-  imageFile: null,
+  prompt: '',
   videoUrl: undefined,
   isGenerating: false,
   
-  setImageFile: (file: File | null) => set({ imageFile: file }),
+  setPrompt: (prompt: string) => set({ prompt }),
   
   generateVideo: async () => {
-    const { imageFile } = get();
+    const { prompt } = get();
     
-    if (!imageFile) {
-      toast.error("Please upload an image");
+    if (!prompt.trim()) {
+      toast.error("Please enter a prompt");
       return;
     }
     
@@ -29,23 +29,14 @@ export const useVideoStore = create<VideoStore>((set, get) => ({
     toast.info("Generating video...");
     
     try {
-      // Convert image to base64
-      const reader = new FileReader();
-      const base64Image = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(imageFile);
-      });
-
       // Call the backend API endpoint
       const { data, error } = await supabase.functions.invoke('generate', {
-        body: { image: base64Image }
+        body: { prompt }
       });
 
       if (error) {
         const message = (data as any)?.error || error.message || '';
-        // Show friendly warm-up message on any failure per requirements
-        toast.error("Model is warming up — please retry after 20 seconds");
+        toast.error(`Video generation failed: ${message}`);
         console.error('Video generation error:', message);
         set({ isGenerating: false });
         return;
@@ -59,7 +50,7 @@ export const useVideoStore = create<VideoStore>((set, get) => ({
       
       toast.success("Video generated successfully!");
     } catch (error) {
-      toast.error("Model is warming up — please retry after 20 seconds");
+      toast.error(error instanceof Error ? error.message : "Failed to generate video");
       console.error(error);
       set({ isGenerating: false });
     }
