@@ -121,10 +121,13 @@ export const AssetLibrary = ({ isCollapsed, onToggleCollapse }: AssetLibraryProp
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="p-4 border-b border-border">
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-2">
               <Package className="w-5 h-5 text-primary" />
               <h2 className="text-lg font-semibold">Asset Library</h2>
             </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Step 7: Drag assets to canvas or timeline
+            </p>
 
             {/* Category Tabs */}
             <div className="grid grid-cols-3 gap-1">

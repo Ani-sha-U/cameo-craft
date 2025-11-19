@@ -19,6 +19,7 @@ interface AssetsStore {
   
   setSelectedCategory: (category: AssetCategory) => void;
   addCustomAsset: (file: File) => Promise<void>;
+  addGeneratedAsset: (asset: Omit<Asset, 'isCustom'>) => void;
   removeCustomAsset: (id: string) => void;
   getAssetsByCategory: (category: AssetCategory) => Asset[];
 }
@@ -177,6 +178,18 @@ export const useAssetsStore = create<AssetsStore>((set, get) => ({
       console.error('Error adding custom asset:', error);
       toast.error('Failed to add asset');
     }
+  },
+  
+  addGeneratedAsset: (asset: Omit<Asset, 'isCustom'>) => {
+    const newAsset: Asset = {
+      ...asset,
+      isCustom: true,
+    };
+    
+    set((state) => ({
+      customAssets: [...state.customAssets, newAsset],
+      assets: [...state.assets, newAsset],
+    }));
   },
   
   removeCustomAsset: (id: string) => {

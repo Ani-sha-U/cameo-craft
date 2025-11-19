@@ -29,11 +29,14 @@ export const PromptSidebar = ({ isCollapsed, onToggleCollapse }: PromptSidebarPr
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
               <Video className="w-5 h-5 text-primary" />
-              <h2 className="text-xl font-semibold text-foreground">Text to Video</h2>
+              <h2 className="text-xl font-semibold text-foreground">AI Generate</h2>
             </div>
             <Badge variant="secondary" className="w-fit text-xs">
-              🔮 Replicate • MiniMax Video-01
+              Step 2: Text → Video
             </Badge>
+            <p className="text-xs text-muted-foreground">
+              Generated videos auto-add to timeline and Asset Library
+            </p>
           </div>
 
           <div className="flex-1 flex flex-col gap-4">
@@ -82,13 +85,25 @@ export const PromptSidebar = ({ isCollapsed, onToggleCollapse }: PromptSidebarPr
               )}
             </Button>
 
-            <div className="mt-4 p-4 bg-muted rounded-lg">
-              <h3 className="text-sm font-medium mb-2 text-foreground">Tips</h3>
-              <ul className="text-xs text-muted-foreground space-y-1">
-                <li>• Be specific and descriptive</li>
-                <li>• Describe the scene, actions, and mood</li>
-                <li>• Keep prompts clear and concise</li>
-              </ul>
+            <div className="mt-4 p-4 bg-muted rounded-lg space-y-3">
+              <div>
+                <h3 className="text-sm font-medium mb-2 text-foreground">✨ Workflow</h3>
+                <ul className="text-xs text-muted-foreground space-y-1">
+                  <li>1. Enter your prompt and generate</li>
+                  <li>2. Video auto-adds to timeline</li>
+                  <li>3. Use "Separate Elements" for layers</li>
+                  <li>4. Add assets, text, and effects</li>
+                  <li>5. Adjust camera and export</li>
+                </ul>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium mb-2 text-foreground">💡 Tips</h3>
+                <ul className="text-xs text-muted-foreground space-y-1">
+                  <li>• Be specific and descriptive</li>
+                  <li>• Include style: "cinematic, 4K, neon"</li>
+                  <li>• Describe actions and mood</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
