@@ -4,6 +4,8 @@ import { VideoPreview } from "@/components/VideoPreview";
 import { Timeline } from "@/components/Timeline";
 import { CameraToolbar } from "@/components/CameraToolbar";
 import { CameraKeyframeTimeline } from "@/components/CameraKeyframeTimeline";
+import { ElementsPanel } from "@/components/ElementsPanel";
+import { ElementsCanvas } from "@/components/ElementsCanvas";
 
 const Index = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -25,8 +27,9 @@ const Index = () => {
         />
         
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 min-h-0 overflow-auto">
+          <div className="flex-1 min-h-0 overflow-auto relative">
             <VideoPreview />
+            <ElementsCanvas />
           </div>
           <div className="p-2 space-y-2 border-t border-border bg-card/50">
             <CameraToolbar />
@@ -34,6 +37,8 @@ const Index = () => {
             <Timeline />
           </div>
         </div>
+
+        <ElementsPanel />
       </div>
     </div>
   );
