@@ -53,10 +53,10 @@ export async function extractFramesFromVideo({
         // Draw current frame to canvas
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        // Convert to thumbnail (scaled down for performance)
+        // Convert to thumbnail (higher quality for better preview)
         const thumbnailCanvas = document.createElement('canvas');
         const thumbnailCtx = thumbnailCanvas.getContext('2d');
-        const thumbnailWidth = 160;
+        const thumbnailWidth = 480;
         const thumbnailHeight = (canvas.height / canvas.width) * thumbnailWidth;
 
         thumbnailCanvas.width = thumbnailWidth;
@@ -64,7 +64,7 @@ export async function extractFramesFromVideo({
 
         if (thumbnailCtx) {
           thumbnailCtx.drawImage(canvas, 0, 0, thumbnailWidth, thumbnailHeight);
-          const thumbnail = thumbnailCanvas.toDataURL('image/jpeg', 0.7);
+          const thumbnail = thumbnailCanvas.toDataURL('image/jpeg', 0.95);
 
           frames.push({
             id: `frame_${currentFrame}_${Date.now()}`,
