@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useFramesStore } from './framesStore';
 
 export type EditMode = 'select' | 'cut' | 'trim' | 'split';
 export type PlaybackSpeed = 0.25 | 0.5 | 1 | 1.5 | 2;
@@ -87,7 +88,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   })),
   
   nextFrame: () => {
-    const { useFramesStore } = require('./framesStore');
     const { frames, selectFrame, selectedFrameId } = useFramesStore.getState();
     const currentIndex = frames.findIndex(f => f.id === selectedFrameId);
     if (currentIndex < frames.length - 1) {
@@ -96,7 +96,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   },
   
   prevFrame: () => {
-    const { useFramesStore } = require('./framesStore');
     const { frames, selectFrame, selectedFrameId } = useFramesStore.getState();
     const currentIndex = frames.findIndex(f => f.id === selectedFrameId);
     if (currentIndex > 0) {
@@ -106,7 +105,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   
   goToStart: () => set({ currentTime: 0 }),
   goToEnd: () => {
-    const { useFramesStore } = require('./framesStore');
     const { frames } = useFramesStore.getState();
     if (frames.length > 0) {
       set({ currentTime: frames.length * 1000 });
