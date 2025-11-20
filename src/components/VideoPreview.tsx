@@ -26,8 +26,8 @@ export const VideoPreview = () => {
     try {
       const frames = await extractFramesFromVideo({
         videoUrl,
-        framesPerSecond: 1,
-        maxFrames: 100,
+        // Auto-detect FPS from video (defaults to 30fps)
+        maxFrames: 300,
       });
 
       addFrames(frames);

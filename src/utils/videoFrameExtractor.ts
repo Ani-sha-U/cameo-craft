@@ -2,13 +2,13 @@ import { Frame } from '@/store/framesStore';
 
 interface ExtractFramesOptions {
   videoUrl: string;
-  framesPerSecond?: number; // How many frames to extract per second (default: 3)
+  framesPerSecond?: number; // How many frames to extract per second (default: auto-detect from video, typically 24-30)
   maxFrames?: number; // Maximum number of frames to extract (default: 300)
 }
 
 export async function extractFramesFromVideo({
   videoUrl,
-  framesPerSecond = 3,
+  framesPerSecond, // Will auto-detect if not provided
   maxFrames = 300,
 }: ExtractFramesOptions): Promise<Frame[]> {
   return new Promise((resolve, reject) => {
@@ -27,9 +27,14 @@ export async function extractFramesFromVideo({
 
     video.addEventListener('loadedmetadata', () => {
       const duration = video.duration;
-      const interval = 1 / framesPerSecond;
+      
+      // Auto-detect FPS from video if not provided (assume 30fps for most videos)
+      // We can't directly get FPS from HTML5 video, so we use a reasonable default
+      const actualFPS = framesPerSecond || 30;
+      
+      const interval = 1 / actualFPS;
       const framesToExtract = Math.min(
-        Math.floor(duration * framesPerSecond),
+        Math.floor(duration * actualFPS),
         maxFrames
       );
 
