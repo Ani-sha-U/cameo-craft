@@ -37,7 +37,7 @@ export const SmartFrameCanvas = ({ className }: SmartFrameCanvasProps) => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
 
-  // Main playback loop with tweening and frame advancement
+  // Main playback loop with timestamp-based frame advancement
   useEffect(() => {
     const animate = (timestamp: number) => {
       if (!isPlayingRef.current || frames.length === 0) {
@@ -45,33 +45,22 @@ export const SmartFrameCanvas = ({ className }: SmartFrameCanvasProps) => {
         return;
       }
 
+      // Initialize timestamp on first frame
       if (!lastFrameTimeRef.current) {
         lastFrameTimeRef.current = timestamp;
       }
 
-      const frameInterval = 1000 / (fps * playbackSpeed);
+      // Calculate frame duration based on FPS and playback speed
+      // Lower playback speed = longer frame duration (slower playback)
+      const frameDuration = 1000 / (fps * playbackSpeed);
       const elapsed = timestamp - lastFrameTimeRef.current;
-      const progress = Math.min(elapsed / frameInterval, 1);
 
-      // Apply tweening between current and next frame
-      const currentIdx = currentIndexRef.current;
-      const nextIdx = currentIdx + 1;
-      
-      if (nextIdx < frames.length && progress < 1) {
-        const tweened = tweenFrameElements(
-          frames[currentIdx].elements,
-          frames[nextIdx].elements,
-          progress
-        );
-        setTweenedElements(tweened);
-      } else {
-        setTweenedElements(undefined);
-      }
-
-      // Advance to next frame when interval elapsed
-      if (elapsed >= frameInterval) {
+      // Only advance to next frame when enough time has elapsed
+      if (elapsed >= frameDuration) {
+        const currentIdx = currentIndexRef.current;
         let nextIndex = currentIdx + 1;
         
+        // Handle end of timeline
         if (nextIndex >= frames.length) {
           if (loop) {
             nextIndex = 0;
@@ -84,10 +73,32 @@ export const SmartFrameCanvas = ({ className }: SmartFrameCanvasProps) => {
           }
         }
         
+        // Advance to next frame
         selectFrame(frames[nextIndex].id);
-        lastFrameTimeRef.current = timestamp;
+        
+        // Reset timer for next frame (preserve any time overflow)
+        lastFrameTimeRef.current = timestamp - (elapsed - frameDuration);
+        
+        // Clear tweening when advancing
+        setTweenedElements(undefined);
+      } else {
+        // Calculate smooth interpolation progress between frames
+        const progress = elapsed / frameDuration;
+        const currentIdx = currentIndexRef.current;
+        const nextIdx = currentIdx + 1;
+        
+        // Apply tweening only if there's a next frame
+        if (nextIdx < frames.length) {
+          const tweened = tweenFrameElements(
+            frames[currentIdx].elements,
+            frames[nextIdx].elements,
+            progress
+          );
+          setTweenedElements(tweened);
+        }
       }
 
+      // Continue animation loop
       if (isPlayingRef.current) {
         animationRef.current = requestAnimationFrame(animate);
       }
@@ -104,6 +115,7 @@ export const SmartFrameCanvas = ({ className }: SmartFrameCanvasProps) => {
         animationRef.current = null;
       }
       setTweenedElements(undefined);
+      lastFrameTimeRef.current = 0;
     };
   }, [isPlaying, frames, fps, playbackSpeed, loop, selectFrame, setIsPlaying]);
 
