@@ -1,5 +1,6 @@
 import { useFramesStore } from '@/store/framesStore';
 import { useElementsStore } from '@/store/elementsStore';
+import { useCameraStore } from '@/store/cameraStore';
 import { useEffect, useRef } from 'react';
 
 interface FrameCanvasProps {
@@ -37,6 +38,7 @@ export const FrameCanvas = ({
   tweenedElements 
 }: FrameCanvasProps) => {
   const { frames, selectedFrameId, preloadedFrames } = useFramesStore();
+  const { currentTransform } = useCameraStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const targetFrameId = frameId || selectedFrameId;
@@ -52,9 +54,17 @@ export const FrameCanvas = ({
     // Use tweened elements if provided, otherwise use frame elements
     const elementsToRender = tweenedElements || currentFrame.elements;
 
-    // DO NOT clear canvas - this causes black flickering
-    // Instead, draw new frame directly over the previous one
-    // ctx.clearRect(0, 0, canvas.width, canvas.height); // REMOVED
+    // Save context state before applying camera transforms
+    ctx.save();
+
+    // Apply camera transforms
+    const { zoom, panX, panY, rotate, dolly } = currentTransform;
+    
+    // Apply transforms in correct order: translate -> rotate -> scale
+    ctx.translate(canvas.width / 2 + panX, canvas.height / 2 + panY);
+    ctx.rotate((rotate * Math.PI) / 180);
+    ctx.scale(zoom + dolly * 0.1, zoom + dolly * 0.1);
+    ctx.translate(-canvas.width / 2, -canvas.height / 2);
 
     // Use preloaded image if available, otherwise load new one
     const preloadedImg = preloadedFrames.get(currentFrame.id);
@@ -65,6 +75,9 @@ export const FrameCanvas = ({
 
       // Draw elements immediately after frame
       drawElements(ctx, canvas, elementsToRender, onFrameRendered);
+      
+      // Restore context state
+      ctx.restore();
     } else {
       // Fallback: load image if not preloaded
       const img = new Image();
@@ -74,13 +87,16 @@ export const FrameCanvas = ({
       img.onload = () => {
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         drawElements(ctx, canvas, elementsToRender, onFrameRendered);
+        // Restore context state
+        ctx.restore();
       };
       
       img.onerror = () => {
         console.error('Failed to load frame image:', currentFrame.id);
+        ctx.restore();
       };
     }
-  }, [currentFrame, width, height, onFrameRendered, tweenedElements, preloadedFrames]);
+  }, [currentFrame, width, height, onFrameRendered, tweenedElements, preloadedFrames, currentTransform]);
 
   // Helper function to draw elements on canvas
   const drawElements = (

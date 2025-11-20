@@ -28,9 +28,11 @@ export const ElementsPanel = () => {
   const elementInFrame = currentFrame?.elements.find(el => el.id === selectedElementId);
 
   const handleSeparate = () => {
-    if (videoUrl) {
-      separateElements(videoUrl);
+    if (!currentFrame) {
+      toast.error("No frame selected. Please select a frame first.");
+      return;
     }
+    separateElements(currentFrame.thumbnail);
   };
 
   const handleDragStart = (e: React.DragEvent, element: Element) => {
@@ -101,7 +103,7 @@ export const ElementsPanel = () => {
         
         <Button 
           onClick={handleSeparate}
-          disabled={isProcessing || !videoUrl}
+          disabled={isProcessing || !currentFrame}
           className="w-full h-7 text-xs"
           size="sm"
         >
