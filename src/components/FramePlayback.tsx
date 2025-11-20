@@ -38,24 +38,17 @@ export const FramePlayback = () => {
 
   // Smooth playback with tweening between frames
   useEffect(() => {
-    if (!isPlaying || frames.length === 0) {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-        animationRef.current = null;
-      }
-      lastFrameTimeRef.current = 0;
-      setTweenProgress(0);
-      return;
-    }
-
-    const frameInterval = 1000 / (fps * playbackSpeed);
-    lastFrameTimeRef.current = 0; // Reset on play
-
     const animate = (timestamp: number) => {
+      // Check if we should continue animating
+      if (!isPlayingRef.current || frames.length === 0) {
+        return;
+      }
+
       if (!lastFrameTimeRef.current) {
         lastFrameTimeRef.current = timestamp;
       }
 
+      const frameInterval = 1000 / (fps * playbackSpeed);
       const elapsed = timestamp - lastFrameTimeRef.current;
       const progress = Math.min(elapsed / frameInterval, 1);
       
@@ -73,10 +66,7 @@ export const FramePlayback = () => {
             setIsPlaying(false);
             isPlayingRef.current = false;
             setTweenProgress(0);
-            if (animationRef.current) {
-              cancelAnimationFrame(animationRef.current);
-              animationRef.current = null;
-            }
+            lastFrameTimeRef.current = 0;
             return;
           }
         }
@@ -86,27 +76,23 @@ export const FramePlayback = () => {
         setTweenProgress(0);
       }
 
-      // Check ref instead of closure variable
+      // Continue animation if still playing
       if (isPlayingRef.current) {
         animationRef.current = requestAnimationFrame(animate);
-      } else {
-        // Stop animation if playing was toggled off
-        if (animationRef.current) {
-          cancelAnimationFrame(animationRef.current);
-          animationRef.current = null;
-        }
       }
     };
 
-    animationRef.current = requestAnimationFrame(animate);
+    // Start animation when playing is true
+    if (isPlayingRef.current && frames.length > 0) {
+      lastFrameTimeRef.current = 0;
+      animationRef.current = requestAnimationFrame(animate);
+    }
 
     return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
         animationRef.current = null;
       }
-      lastFrameTimeRef.current = 0;
-      setTweenProgress(0);
     };
   }, [isPlaying, frames, fps, playbackSpeed, loop, selectFrame, setIsPlaying]);
 
