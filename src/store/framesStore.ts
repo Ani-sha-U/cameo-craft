@@ -144,58 +144,73 @@ export const useFramesStore = create<FramesStore>((set, get) => ({
     set({ onionSkinRange: range });
   },
 
-  interpolateFrames: (startFrameId, endFrameId, numFrames) => {
+  interpolateFrames: async (startFrameId, endFrameId, numFrames) => {
     const state = get();
     const startIndex = state.frames.findIndex((f) => f.id === startFrameId);
     const endIndex = state.frames.findIndex((f) => f.id === endFrameId);
-    
-    if (startIndex === -1 || endIndex === -1 || startIndex >= endIndex) return;
+
+    if (startIndex === -1 || endIndex === -1 || startIndex >= endIndex) {
+      console.error('Invalid frame selection for interpolation');
+      return;
+    }
 
     const startFrame = state.frames[startIndex];
     const endFrame = state.frames[endIndex];
 
-    // Create interpolated frames
-    const newFrames: Frame[] = [];
+    // Import tweening utilities
+    const { tweenFrameElements } = await import('@/utils/frameTweening');
+    const { composeFrameToDataURL } = await import('@/utils/frameCompositor');
+
+    // Generate interpolated frames
+    const interpolatedFrames: Frame[] = [];
+
     for (let i = 1; i <= numFrames; i++) {
-      const t = i / (numFrames + 1);
-      
-      // Interpolate elements
-      const interpolatedElements = startFrame.elements.map((startEl) => {
-        const endEl = endFrame.elements.find((e) => e.id === startEl.id);
-        if (!endEl) return startEl;
+      const t = i / (numFrames + 1); // Progress from 0 to 1
+      const timestamp = startFrame.timestamp + (endFrame.timestamp - startFrame.timestamp) * t;
 
-        return {
-          ...startEl,
-          id: `${startEl.id}_interp_${i}`,
-          x: startEl.x + (endEl.x - startEl.x) * t,
-          y: startEl.y + (endEl.y - startEl.y) * t,
-          rotation: startEl.rotation + (endEl.rotation - startEl.rotation) * t,
-          opacity: startEl.opacity + (endEl.opacity - startEl.opacity) * t,
-          width: startEl.width + (endEl.width - startEl.width) * t,
-          height: startEl.height + (endEl.height - startEl.height) * t,
-        };
-      });
+      // Tween elements between start and end frames
+      const tweenedElements = tweenFrameElements(startFrame.elements, endFrame.elements, t);
 
-      newFrames.push({
-        id: `frame_interp_${Date.now()}_${i}`,
-        thumbnail: startFrame.thumbnail,
-        timestamp: startFrame.timestamp + (endFrame.timestamp - startFrame.timestamp) * t,
-        elements: interpolatedElements,
+      // Create intermediate frame
+      const intermediateFrame: Frame = {
+        id: `frame_interpolated_${Date.now()}_${i}`,
+        thumbnail: startFrame.thumbnail, // Will be updated after composition
+        timestamp,
+        elements: tweenedElements,
         canvasState: {
           zoom: startFrame.canvasState.zoom + (endFrame.canvasState.zoom - startFrame.canvasState.zoom) * t,
           panX: startFrame.canvasState.panX + (endFrame.canvasState.panX - startFrame.canvasState.panX) * t,
           panY: startFrame.canvasState.panY + (endFrame.canvasState.panY - startFrame.canvasState.panY) * t,
         },
-      });
+      };
+
+      interpolatedFrames.push(intermediateFrame);
     }
 
-    // Insert interpolated frames
-    const updatedFrames = [
+    // Compose all interpolated frames to get actual thumbnails
+    // This happens asynchronously but we insert frames immediately for responsiveness
+    const newFrames = [
       ...state.frames.slice(0, startIndex + 1),
-      ...newFrames,
-      ...state.frames.slice(startIndex + 1),
+      ...interpolatedFrames,
+      ...state.frames.slice(endIndex),
     ];
 
-    set({ frames: updatedFrames });
+    set({ frames: newFrames });
+
+    // Compose frames in background and update thumbnails
+    for (let i = 0; i < interpolatedFrames.length; i++) {
+      const frame = interpolatedFrames[i];
+      try {
+        const composedDataURL = await composeFrameToDataURL(frame);
+        // Update frame thumbnail
+        set((state) => ({
+          frames: state.frames.map((f) =>
+            f.id === frame.id ? { ...f, thumbnail: composedDataURL } : f
+          ),
+        }));
+      } catch (error) {
+        console.error('Failed to compose interpolated frame:', error);
+      }
+    }
   },
 }));

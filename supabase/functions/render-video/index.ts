@@ -34,11 +34,12 @@ serve(async (req) => {
     }
     
     // Start new render job
-    const { format, clips, cameraKeyframes, elements, frames, totalDuration } = body;
+    const { format, clips, cameraKeyframes, elements, frames, composedFrames, fps, totalDuration } = body;
     
-    if (!clips || clips.length === 0) {
+    // Use either composed frames or clips
+    if ((!clips || clips.length === 0) && (!composedFrames || composedFrames.length === 0)) {
       return new Response(
-        JSON.stringify({ error: 'No clips provided' }),
+        JSON.stringify({ error: 'No clips or composed frames provided' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -47,7 +48,9 @@ serve(async (req) => {
     
     console.log('Starting render job:', jobId);
     console.log('Format:', format);
-    console.log('Clips:', clips.length);
+    console.log('Clips:', clips?.length || 0);
+    console.log('Composed frames:', composedFrames?.length || 0);
+    console.log('FPS:', fps || 24);
     console.log('Camera keyframes:', cameraKeyframes?.length || 0);
     console.log('Elements:', elements?.length || 0);
     console.log('Frames:', frames?.length || 0);
@@ -60,7 +63,7 @@ serve(async (req) => {
     });
     
     // Background processing
-    processRenderJob(jobId, clips, cameraKeyframes, elements, frames, format);
+    processRenderJob(jobId, clips, cameraKeyframes, elements, frames, composedFrames, fps, format);
     
     return new Response(
       JSON.stringify({ 
@@ -93,9 +96,50 @@ async function processRenderJob(
   cameraKeyframes: any[],
   elements: any[],
   frames: any[],
+  composedFrames: string[], // Base64 data URLs of composed frames
+  fps: number,
   format: string
 ) {
   try {
+    // If we have composed frames, use those directly
+    if (composedFrames && composedFrames.length > 0) {
+      jobs.set(jobId, {
+        status: 'processing',
+        progress: 50,
+        step: `Encoding ${composedFrames.length} composed frames to ${format}...`,
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // In a real implementation, you would:
+      // 1. Decode base64 images
+      // 2. Use FFmpeg to encode them into a video at the specified FPS
+      // 3. Upload to storage
+      // 4. Return the URL
+      
+      jobs.set(jobId, {
+        status: 'processing',
+        progress: 80,
+        step: 'Uploading rendered video...',
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Mock output URL (in production, this would be the actual uploaded video)
+      const mockOutputUrl = `https://example.com/rendered-${jobId}.${format.split('-')[0]}`;
+      
+      jobs.set(jobId, {
+        status: 'completed',
+        progress: 100,
+        step: 'Render complete!',
+        url: mockOutputUrl,
+      });
+      
+      console.log('Render completed:', jobId);
+      return;
+    }
+    
+    // Otherwise, use the legacy clip-based workflow
     // Step 1: Download clips
     jobs.set(jobId, {
       status: 'processing',
