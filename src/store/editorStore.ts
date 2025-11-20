@@ -103,10 +103,17 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     }
   },
   
-  goToStart: () => set({ currentTime: 0 }),
-  goToEnd: () => {
-    const { frames } = useFramesStore.getState();
+  goToStart: () => {
+    const { frames, selectFrame } = useFramesStore.getState();
     if (frames.length > 0) {
+      selectFrame(frames[0].id);
+    }
+    set({ currentTime: 0 });
+  },
+  goToEnd: () => {
+    const { frames, selectFrame } = useFramesStore.getState();
+    if (frames.length > 0) {
+      selectFrame(frames[frames.length - 1].id);
       set({ currentTime: frames.length * 1000 });
     }
   },

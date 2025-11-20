@@ -2,7 +2,7 @@ import { useFramesStore } from '@/store/framesStore';
 import { useEditorStore } from '@/store/editorStore';
 import { FrameCanvas } from './FrameCanvas';
 import { tweenFrameElements } from '@/utils/frameTweening';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Element } from '@/store/elementsStore';
 
 interface SmartFrameCanvasProps {
@@ -16,55 +16,96 @@ interface SmartFrameCanvasProps {
  * - Real-time element updates
  */
 export const SmartFrameCanvas = ({ className }: SmartFrameCanvasProps) => {
-  const { frames, selectedFrameId } = useFramesStore();
-  const { isPlaying } = useEditorStore();
+  const { frames, selectedFrameId, selectFrame, fps } = useFramesStore();
+  const { isPlaying, loop, playbackSpeed, setIsPlaying } = useEditorStore();
   const [tweenedElements, setTweenedElements] = useState<Element[] | undefined>(undefined);
+  
+  const animationRef = useRef<number | null>(null);
+  const lastFrameTimeRef = useRef<number>(0);
+  const currentIndexRef = useRef<number>(0);
+  const isPlayingRef = useRef<boolean>(false);
 
   const currentIndex = frames.findIndex((f) => f.id === selectedFrameId);
   const currentFrame = frames[currentIndex];
-  const nextFrame = currentIndex < frames.length - 1 ? frames[currentIndex + 1] : null;
 
-  // Handle tweening during playback
+  // Keep refs in sync
   useEffect(() => {
-    if (!isPlaying || !currentFrame || !nextFrame) {
-      setTweenedElements(undefined);
-      return;
-    }
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
 
-    let animationFrameId: number;
-    let startTime: number | null = null;
-    const fps = useFramesStore.getState().fps;
-    const playbackSpeed = useEditorStore.getState().playbackSpeed;
-    const frameDuration = 1000 / (fps * playbackSpeed);
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
 
+  // Main playback loop with tweening and frame advancement
+  useEffect(() => {
     const animate = (timestamp: number) => {
-      if (!startTime) startTime = timestamp;
-      const elapsed = timestamp - startTime;
-      const progress = Math.min(elapsed / frameDuration, 1);
+      if (!isPlayingRef.current || frames.length === 0) {
+        setTweenedElements(undefined);
+        return;
+      }
 
-      if (progress < 1 && currentFrame && nextFrame) {
-        // Calculate tweened elements
+      if (!lastFrameTimeRef.current) {
+        lastFrameTimeRef.current = timestamp;
+      }
+
+      const frameInterval = 1000 / (fps * playbackSpeed);
+      const elapsed = timestamp - lastFrameTimeRef.current;
+      const progress = Math.min(elapsed / frameInterval, 1);
+
+      // Apply tweening between current and next frame
+      const currentIdx = currentIndexRef.current;
+      const nextIdx = currentIdx + 1;
+      
+      if (nextIdx < frames.length && progress < 1) {
         const tweened = tweenFrameElements(
-          currentFrame.elements,
-          nextFrame.elements,
+          frames[currentIdx].elements,
+          frames[nextIdx].elements,
           progress
         );
         setTweenedElements(tweened);
-        animationFrameId = requestAnimationFrame(animate);
       } else {
         setTweenedElements(undefined);
       }
+
+      // Advance to next frame when interval elapsed
+      if (elapsed >= frameInterval) {
+        let nextIndex = currentIdx + 1;
+        
+        if (nextIndex >= frames.length) {
+          if (loop) {
+            nextIndex = 0;
+          } else {
+            setIsPlaying(false);
+            isPlayingRef.current = false;
+            setTweenedElements(undefined);
+            lastFrameTimeRef.current = 0;
+            return;
+          }
+        }
+        
+        selectFrame(frames[nextIndex].id);
+        lastFrameTimeRef.current = timestamp;
+      }
+
+      if (isPlayingRef.current) {
+        animationRef.current = requestAnimationFrame(animate);
+      }
     };
 
-    animationFrameId = requestAnimationFrame(animate);
+    if (isPlayingRef.current && frames.length > 0) {
+      lastFrameTimeRef.current = 0;
+      animationRef.current = requestAnimationFrame(animate);
+    }
 
     return () => {
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
       }
       setTweenedElements(undefined);
     };
-  }, [isPlaying, currentFrame, nextFrame]);
+  }, [isPlaying, frames, fps, playbackSpeed, loop, selectFrame, setIsPlaying]);
 
   if (!currentFrame) {
     return (
