@@ -52,8 +52,9 @@ export const FrameCanvas = ({
     // Use tweened elements if provided, otherwise use frame elements
     const elementsToRender = tweenedElements || currentFrame.elements;
 
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // DO NOT clear canvas - this causes black flickering
+    // Instead, draw new frame directly over the previous one
+    // ctx.clearRect(0, 0, canvas.width, canvas.height); // REMOVED
 
     // Draw frame thumbnail as background
     const img = new Image();
