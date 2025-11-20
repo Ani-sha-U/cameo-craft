@@ -26,7 +26,7 @@ interface ElementsStore {
   setSelectedElement: (id: string | null) => void;
   addElement: (element: Element) => void;
   updateElement: (id: string, updates: Partial<Element>) => void;
-  separateElements: (videoUrl: string) => Promise<void>;
+  separateElements: (frameImage: string) => Promise<void>;
   removeElement: (id: string) => void;
 }
 
@@ -59,18 +59,18 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
     }));
   },
 
-  separateElements: async (videoUrl: string) => {
-    if (!videoUrl) {
-      toast.error("No video URL provided");
+  separateElements: async (frameImage: string) => {
+    if (!frameImage) {
+      toast.error("No frame image provided");
       return;
     }
 
     set({ isProcessing: true });
-    toast.info("Separating elements from video...");
+    toast.info("Separating elements from frame...");
 
     try {
       const { data, error } = await supabase.functions.invoke('separateElements', {
-        body: { videoUrl }
+        body: { frameImage, useMock: true }
       });
 
       if (error || !data?.success) {

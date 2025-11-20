@@ -12,18 +12,18 @@ serve(async (req) => {
   }
 
   try {
-    const { videoUrl, frameIndex = 0, useMock = true } = await req.json();
+    const { frameImage, useMock = true } = await req.json();
     
-    if (!videoUrl) {
+    if (!frameImage) {
       return new Response(
-        JSON.stringify({ error: "Missing videoUrl" }),
+        JSON.stringify({ error: "Missing frameImage" }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // MOCK MODE - Return sample separated elements
     if (useMock) {
-      console.log('Mock mode: Simulating element separation for video:', videoUrl);
+      console.log('Mock mode: Simulating element separation for frame:', frameImage.substring(0, 50));
       
       // Generate mock transparent PNG elements as base64
       const mockElements = [
@@ -52,7 +52,6 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           elements,
-          frameIndex,
           success: true 
         }),
         { 
@@ -63,10 +62,10 @@ serve(async (req) => {
     }
 
     // REAL MODE - Not implemented due to memory constraints
-    // Processing video files requires too much memory for edge functions
+    // Processing frame images requires AI segmentation models
     return new Response(
       JSON.stringify({ 
-        error: 'Real video processing not available. Use mock mode (useMock: true)',
+        error: 'Real frame processing not available. Use mock mode (useMock: true)',
         success: false
       }),
       {
