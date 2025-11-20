@@ -1,6 +1,5 @@
 import { useFramesStore } from '@/store/framesStore';
 import { useElementsStore } from '@/store/elementsStore';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Copy } from 'lucide-react';
 import { Card } from '@/components/ui/card';
@@ -50,8 +49,8 @@ export const FrameStrip = () => {
         <h3 className="text-xs font-semibold">Frames ({frames.length})</h3>
         <FrameInterpolationDialog />
       </div>
-      <ScrollArea className="w-full h-20">
-        <div className="flex gap-1.5 pb-1">
+      <div className="w-full overflow-x-auto overflow-y-hidden">
+        <div className="flex gap-1.5 pb-1 min-w-max">
           {frames.map((frame, index) => (
             <div
               key={frame.id}
@@ -102,7 +101,7 @@ export const FrameStrip = () => {
             </div>
           ))}
         </div>
-      </ScrollArea>
+      </div>
     </Card>
   );
 };
