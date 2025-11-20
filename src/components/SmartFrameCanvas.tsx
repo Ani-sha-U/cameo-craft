@@ -1,5 +1,6 @@
 import { useFramesStore } from '@/store/framesStore';
 import { useEditorStore } from '@/store/editorStore';
+import { useCameraStore } from '@/store/cameraStore';
 import { FrameCanvas } from './FrameCanvas';
 import { tweenFrameElements } from '@/utils/frameTweening';
 import { useEffect, useState, useRef } from 'react';
@@ -18,6 +19,7 @@ interface SmartFrameCanvasProps {
 export const SmartFrameCanvas = ({ className }: SmartFrameCanvasProps) => {
   const { frames, selectedFrameId, selectFrame, fps, preloadAllFrames, preloadedFrames } = useFramesStore();
   const { isPlaying, loop, playbackSpeed, setIsPlaying } = useEditorStore();
+  const { getTransformAtTime, duration, setCurrentTime: setCameraTime } = useCameraStore();
   const [tweenedElements, setTweenedElements] = useState<Element[] | undefined>(undefined);
   
   const animationRef = useRef<number | null>(null);
@@ -50,6 +52,8 @@ export const SmartFrameCanvas = ({ className }: SmartFrameCanvasProps) => {
 
   // Main playback loop with timestamp-based frame advancement
   useEffect(() => {
+    let startTimeRef = 0;
+    
     const animate = (timestamp: number) => {
       if (!isPlayingRef.current || frames.length === 0) {
         setTweenedElements(undefined);
@@ -59,10 +63,14 @@ export const SmartFrameCanvas = ({ className }: SmartFrameCanvasProps) => {
       // Initialize timestamp on first frame
       if (!lastFrameTimeRef.current) {
         lastFrameTimeRef.current = timestamp;
+        startTimeRef = timestamp;
       }
 
+      // Calculate elapsed time and sync camera
+      const totalElapsed = timestamp - startTimeRef;
+      setCameraTime(totalElapsed);
+
       // Calculate frame duration based on FPS and playback speed
-      // Lower playback speed = longer frame duration (slower playback)
       const frameDuration = 1000 / (fps * playbackSpeed);
       const elapsed = timestamp - lastFrameTimeRef.current;
 
@@ -75,11 +83,13 @@ export const SmartFrameCanvas = ({ className }: SmartFrameCanvasProps) => {
         if (nextIndex >= frames.length) {
           if (loop) {
             nextIndex = 0;
+            startTimeRef = timestamp;
           } else {
             setIsPlaying(false);
             isPlayingRef.current = false;
             setTweenedElements(undefined);
             lastFrameTimeRef.current = 0;
+            setCameraTime(0);
             return;
           }
         }
@@ -87,7 +97,7 @@ export const SmartFrameCanvas = ({ className }: SmartFrameCanvasProps) => {
         // Advance to next frame
         selectFrame(frames[nextIndex].id);
         
-        // Reset timer for next frame (preserve any time overflow)
+        // Reset timer for next frame
         lastFrameTimeRef.current = timestamp - (elapsed - frameDuration);
         
         // Clear tweening when advancing
