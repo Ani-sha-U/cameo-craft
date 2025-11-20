@@ -3,7 +3,9 @@ import { useEditorStore } from "@/store/editorStore";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Play, Pause, SkipBack, SkipForward } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { tweenFrameElements } from "@/utils/frameTweening";
+import { Element } from "@/store/elementsStore";
 
 export const FramePlayback = () => {
   const { 
@@ -11,26 +13,31 @@ export const FramePlayback = () => {
     selectedFrameId, 
     fps, 
     selectFrame, 
-    setFps 
+    setFps,
+    updateFrameElements 
   } = useFramesStore();
 
   const { isPlaying, setIsPlaying, loop, playbackSpeed } = useEditorStore();
   
   const animationRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number>(0);
+  const [tweenProgress, setTweenProgress] = useState<number>(0);
 
   const currentIndex = frames.findIndex((f) => f.id === selectedFrameId);
 
+  // Smooth playback with tweening between frames
   useEffect(() => {
     if (!isPlaying || frames.length === 0) {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
         animationRef.current = null;
       }
+      setTweenProgress(0);
       return;
     }
 
     const frameInterval = 1000 / (fps * playbackSpeed);
+    const tweenSteps = 4; // Number of tween steps between frames for smooth motion
 
     const animate = (timestamp: number) => {
       if (!lastFrameTimeRef.current) {
@@ -38,6 +45,10 @@ export const FramePlayback = () => {
       }
 
       const elapsed = timestamp - lastFrameTimeRef.current;
+      const progress = Math.min(elapsed / frameInterval, 1);
+      
+      // Update tween progress for smooth interpolation
+      setTweenProgress(progress);
 
       if (elapsed >= frameInterval) {
         let nextIndex = currentIndex + 1;
@@ -47,12 +58,14 @@ export const FramePlayback = () => {
             nextIndex = 0;
           } else {
             setIsPlaying(false);
+            setTweenProgress(0);
             return;
           }
         }
         
         selectFrame(frames[nextIndex].id);
         lastFrameTimeRef.current = timestamp;
+        setTweenProgress(0);
       }
 
       animationRef.current = requestAnimationFrame(animate);
@@ -64,6 +77,7 @@ export const FramePlayback = () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
+      setTweenProgress(0);
     };
   }, [isPlaying, currentIndex, frames, fps, playbackSpeed, loop, selectFrame, setIsPlaying]);
 

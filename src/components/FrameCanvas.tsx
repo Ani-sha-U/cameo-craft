@@ -8,6 +8,24 @@ interface FrameCanvasProps {
   width?: number;
   height?: number;
   onFrameRendered?: (canvas: HTMLCanvasElement) => void;
+  tweenedElements?: Element[]; // Override frame elements with tweened versions
+}
+
+interface Element {
+  id: string;
+  label: string;
+  image: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  opacity: number;
+  blur: number;
+  brightness: number;
+  glow?: number;
+  blendMode?: string;
+  mask?: string;
 }
 
 export const FrameCanvas = ({ 
@@ -15,7 +33,8 @@ export const FrameCanvas = ({
   className = "w-full h-auto", 
   width = 1920, 
   height = 1080,
-  onFrameRendered 
+  onFrameRendered,
+  tweenedElements 
 }: FrameCanvasProps) => {
   const { frames, selectedFrameId } = useFramesStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -30,6 +49,9 @@ export const FrameCanvas = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Use tweened elements if provided, otherwise use frame elements
+    const elementsToRender = tweenedElements || currentFrame.elements;
+
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -43,15 +65,15 @@ export const FrameCanvas = ({
 
       // Track loaded elements
       let loadedCount = 0;
-      const totalElements = currentFrame.elements.length;
+      const totalElements = elementsToRender.length;
 
       if (totalElements === 0) {
         onFrameRendered?.(canvas);
         return;
       }
 
-      // Draw frame elements
-      currentFrame.elements.forEach((element) => {
+      // Draw frame elements (or tweened elements)
+      elementsToRender.forEach((element) => {
         const elementImg = new Image();
         elementImg.crossOrigin = 'anonymous';
         elementImg.src = element.image;
@@ -87,7 +109,7 @@ export const FrameCanvas = ({
         };
       });
     };
-  }, [currentFrame, width, height, onFrameRendered]);
+  }, [currentFrame, width, height, onFrameRendered, tweenedElements]);
 
   if (!currentFrame) {
     return null;

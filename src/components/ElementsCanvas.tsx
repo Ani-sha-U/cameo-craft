@@ -132,13 +132,17 @@ export const ElementsCanvas = () => {
       // Add to current frame
       updateFrameElements(selectedFrameId, [...currentFrame.elements, newElement]);
       const { toast } = require('sonner');
-      toast.success(`Added element to frame`);
+      toast.success(`Element added to frame`, {
+        description: 'All edits persist in playback, interpolation, and rendering',
+      });
     } else {
       // Add to global elements
       const { addElement } = useElementsStore.getState();
       addElement(newElement);
       const { toast } = require('sonner');
-      toast.success(`Added element to canvas`);
+      toast.success(`Element added to canvas`, {
+        description: 'This element is visible across all frames',
+      });
     }
   };
 

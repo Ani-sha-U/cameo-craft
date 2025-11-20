@@ -15,7 +15,7 @@ import { ElementPropertiesPanel } from "@/components/ElementPropertiesPanel";
 import { CanvasEditor } from "@/components/CanvasEditor";
 import { ProjectMenu } from "@/components/ProjectMenu";
 import { WelcomeDialog } from "@/components/WelcomeDialog";
-import { FrameCanvas } from "@/components/FrameCanvas";
+import { SmartFrameCanvas } from "@/components/SmartFrameCanvas";
 import { TransportControls } from "@/components/TransportControls";
 import { EditingToolbar } from "@/components/EditingToolbar";
 import { useFramesStore } from "@/store/framesStore";
@@ -72,7 +72,7 @@ const Index = () => {
               {frames.length > 0 ? (
                 <div className="h-full flex items-center justify-center p-4 bg-gradient-to-br from-background to-muted/20">
                   <div className="max-w-4xl w-full">
-                    <FrameCanvas className="w-full h-auto rounded-lg shadow-2xl" />
+                    <SmartFrameCanvas className="w-full h-auto rounded-lg shadow-2xl" />
                   </div>
                 </div>
               ) : (

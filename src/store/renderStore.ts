@@ -30,6 +30,7 @@ export const useRenderStore = create<RenderStore>((set, get) => ({
     const { useCameraStore } = await import('./cameraStore');
     const { useElementsStore } = await import('./elementsStore');
     const { useFramesStore } = await import('./framesStore');
+    const { composeFrames } = await import('@/utils/frameCompositor');
     
     const timelineState = useTimelineStore.getState();
     const cameraState = useCameraStore.getState();
@@ -51,21 +52,56 @@ export const useRenderStore = create<RenderStore>((set, get) => ({
     });
     
     try {
-      // Prepare render data
+      // Compose all frames to bitmaps for final export
+      set({ 
+        currentStep: 'Composing frames with all edits...',
+        progress: 5,
+      });
+
+      const composedFrameBlobs = await composeFrames(
+        framesState.frames,
+        1920,
+        1080,
+        (current, total) => {
+          set({ 
+            progress: 5 + (current / total) * 30,
+            currentStep: `Composing frame ${current} of ${total}...`,
+          });
+        }
+      );
+
+      // Convert blobs to base64 for transmission
+      const composedFramesData = await Promise.all(
+        composedFrameBlobs.map((blob) => {
+          return new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+        })
+      );
+
+      // Prepare render data with composed frames
       const renderData = {
         format,
         clips: timelineState.clips,
         cameraKeyframes: cameraState.keyframes,
         elements: elementsState.elements,
         frames: framesState.frames,
+        composedFrames: composedFramesData, // Send composed bitmaps
+        fps: framesState.fps,
         totalDuration: timelineState.totalDuration,
       };
       
-      console.log('Starting render with data:', renderData);
+      console.log('Starting render with composed frames:', {
+        frameCount: composedFramesData.length,
+        format,
+        fps: framesState.fps,
+      });
       
       set({ 
         renderStatus: 'rendering',
-        progress: 10,
+        progress: 40,
         currentStep: 'Sending to render service...',
       });
       
