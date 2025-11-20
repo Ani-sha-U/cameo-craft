@@ -36,7 +36,7 @@ export const FrameCanvas = ({
   onFrameRendered,
   tweenedElements 
 }: FrameCanvasProps) => {
-  const { frames, selectedFrameId } = useFramesStore();
+  const { frames, selectedFrameId, preloadedFrames } = useFramesStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const targetFrameId = frameId || selectedFrameId;
@@ -56,25 +56,48 @@ export const FrameCanvas = ({
     // Instead, draw new frame directly over the previous one
     // ctx.clearRect(0, 0, canvas.width, canvas.height); // REMOVED
 
-    // Draw frame thumbnail as background
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.src = currentFrame.thumbnail;
+    // Use preloaded image if available, otherwise load new one
+    const preloadedImg = preloadedFrames.get(currentFrame.id);
     
-    img.onload = () => {
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    if (preloadedImg && preloadedImg.complete) {
+      // Use preloaded image - no waiting needed
+      ctx.drawImage(preloadedImg, 0, 0, canvas.width, canvas.height);
 
-      // Track loaded elements
-      let loadedCount = 0;
-      const totalElements = elementsToRender.length;
+      // Draw elements immediately after frame
+      drawElements(ctx, canvas, elementsToRender, onFrameRendered);
+    } else {
+      // Fallback: load image if not preloaded
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = currentFrame.thumbnail;
+      
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        drawElements(ctx, canvas, elementsToRender, onFrameRendered);
+      };
+      
+      img.onerror = () => {
+        console.error('Failed to load frame image:', currentFrame.id);
+      };
+    }
+  }, [currentFrame, width, height, onFrameRendered, tweenedElements, preloadedFrames]);
 
-      if (totalElements === 0) {
-        onFrameRendered?.(canvas);
-        return;
-      }
+  // Helper function to draw elements on canvas
+  const drawElements = (
+    ctx: CanvasRenderingContext2D,
+    canvas: HTMLCanvasElement,
+    elementsToRender: Element[],
+    onFrameRendered?: (canvas: HTMLCanvasElement) => void
+  ) => {
+    if (elementsToRender.length === 0) {
+      onFrameRendered?.(canvas);
+      return;
+    }
 
-      // Draw frame elements (or tweened elements)
-      elementsToRender.forEach((element) => {
+    let loadedCount = 0;
+    const totalElements = elementsToRender.length;
+
+    elementsToRender.forEach((element) => {
         const elementImg = new Image();
         elementImg.crossOrigin = 'anonymous';
         elementImg.src = element.image;
@@ -108,9 +131,16 @@ export const FrameCanvas = ({
             onFrameRendered?.(canvas);
           }
         };
+        
+        elementImg.onerror = () => {
+          console.warn('Failed to load element image:', element.id);
+          loadedCount++;
+          if (loadedCount === totalElements) {
+            onFrameRendered?.(canvas);
+          }
+        };
       });
     };
-  }, [currentFrame, width, height, onFrameRendered, tweenedElements]);
 
   if (!currentFrame) {
     return null;
