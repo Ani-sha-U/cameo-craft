@@ -14,7 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      render_jobs: {
+        Row: {
+          created_at: string | null
+          error: string | null
+          format: string
+          id: string
+          output_url: string | null
+          progress: number | null
+          status: string
+          step: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error?: string | null
+          format: string
+          id: string
+          output_url?: string | null
+          progress?: number | null
+          status: string
+          step?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error?: string | null
+          format?: string
+          id?: string
+          output_url?: string | null
+          progress?: number | null
+          status?: string
+          step?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

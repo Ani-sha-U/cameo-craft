@@ -1,12 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// In-memory job storage (for prototype - use database in production)
-const jobs = new Map<string, any>();
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,9 +20,13 @@ serve(async (req) => {
     
     // Status check
     if (body.jobId) {
-      const job = jobs.get(body.jobId);
+      const { data: job, error } = await supabase
+        .from('render_jobs')
+        .select('*')
+        .eq('id', body.jobId)
+        .single();
       
-      if (!job) {
+      if (error || !job) {
         return new Response(
           JSON.stringify({ error: 'Job not found' }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -28,7 +34,13 @@ serve(async (req) => {
       }
       
       return new Response(
-        JSON.stringify(job),
+        JSON.stringify({
+          status: job.status,
+          progress: job.progress,
+          step: job.step,
+          url: job.output_url,
+          error: job.error
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -55,8 +67,10 @@ serve(async (req) => {
     console.log('Elements:', elements?.length || 0);
     console.log('Frames:', frames?.length || 0);
     
-    // Initialize job
-    jobs.set(jobId, {
+    // Initialize job in database
+    await supabase.from('render_jobs').insert({
+      id: jobId,
+      format,
       status: 'processing',
       progress: 0,
       step: 'Initializing...',
@@ -103,11 +117,11 @@ async function processRenderJob(
   try {
     // If we have composed frames, use those directly
     if (composedFrames && composedFrames.length > 0) {
-      jobs.set(jobId, {
+      await supabase.from('render_jobs').update({
         status: 'processing',
         progress: 50,
         step: `Encoding ${composedFrames.length} composed frames to ${format}...`,
-      });
+      }).eq('id', jobId);
       
       await new Promise(resolve => setTimeout(resolve, 3000));
       
@@ -117,23 +131,23 @@ async function processRenderJob(
       // 3. Upload to storage
       // 4. Return the URL
       
-      jobs.set(jobId, {
+      await supabase.from('render_jobs').update({
         status: 'processing',
         progress: 80,
         step: 'Uploading rendered video...',
-      });
+      }).eq('id', jobId);
       
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Mock output URL (in production, this would be the actual uploaded video)
       const mockOutputUrl = `https://example.com/rendered-${jobId}.${format.split('-')[0]}`;
       
-      jobs.set(jobId, {
+      await supabase.from('render_jobs').update({
         status: 'completed',
         progress: 100,
         step: 'Render complete!',
-        url: mockOutputUrl,
-      });
+        output_url: mockOutputUrl,
+      }).eq('id', jobId);
       
       console.log('Render completed:', jobId);
       return;
@@ -141,39 +155,39 @@ async function processRenderJob(
     
     // Otherwise, use the legacy clip-based workflow
     // Step 1: Download clips
-    jobs.set(jobId, {
+    await supabase.from('render_jobs').update({
       status: 'processing',
       progress: 20,
       step: 'Downloading video clips...',
-    });
+    }).eq('id', jobId);
     
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     // Step 2: Apply transitions
-    jobs.set(jobId, {
+    await supabase.from('render_jobs').update({
       status: 'processing',
       progress: 40,
       step: 'Applying transitions...',
-    });
+    }).eq('id', jobId);
     
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     // Step 3: Apply camera movements
-    jobs.set(jobId, {
+    await supabase.from('render_jobs').update({
       status: 'processing',
       progress: 60,
       step: 'Applying camera keyframes...',
-    });
+    }).eq('id', jobId);
     
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     // Step 4: Process frames and composite elements
     if (frames && frames.length > 0) {
-      jobs.set(jobId, {
+      await supabase.from('render_jobs').update({
         status: 'processing',
         progress: 70,
         step: 'Processing frames...',
-      });
+      }).eq('id', jobId);
       
       await new Promise(resolve => setTimeout(resolve, 2000));
       
@@ -182,30 +196,30 @@ async function processRenderJob(
         sum + (frame.elements?.length || 0), 0);
       
       if (totalElements > 0) {
-        jobs.set(jobId, {
+        await supabase.from('render_jobs').update({
           status: 'processing',
           progress: 80,
           step: `Compositing ${totalElements} frame layers...`,
-        });
+        }).eq('id', jobId);
         
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
     } else if (elements && elements.length > 0) {
-      jobs.set(jobId, {
+      await supabase.from('render_jobs').update({
         status: 'processing',
         progress: 75,
         step: 'Compositing layers...',
-      });
+      }).eq('id', jobId);
       
       await new Promise(resolve => setTimeout(resolve, 1500));
     }
     
     // Step 5: Encode
-    jobs.set(jobId, {
+    await supabase.from('render_jobs').update({
       status: 'processing',
       progress: 90,
       step: `Encoding ${format}...`,
-    });
+    }).eq('id', jobId);
     
     await new Promise(resolve => setTimeout(resolve, 2000));
     
@@ -213,21 +227,21 @@ async function processRenderJob(
     // In production: process with ffmpeg and upload to storage
     const mockUrl = clips[0]?.videoUrl || 'https://example.com/output.mp4';
     
-    jobs.set(jobId, {
+    await supabase.from('render_jobs').update({
       status: 'completed',
       progress: 100,
       step: 'Complete!',
-      url: mockUrl,
-    });
+      output_url: mockUrl,
+    }).eq('id', jobId);
     
     console.log('Render job completed:', jobId);
     
   } catch (error) {
     console.error('Render job failed:', error);
-    jobs.set(jobId, {
+    await supabase.from('render_jobs').update({
       status: 'error',
       progress: 0,
       error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    }).eq('id', jobId);
   }
 }
