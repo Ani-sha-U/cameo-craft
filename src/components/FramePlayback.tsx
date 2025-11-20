@@ -22,8 +22,14 @@ export const FramePlayback = () => {
   const animationRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number>(0);
   const [tweenProgress, setTweenProgress] = useState<number>(0);
+  const currentIndexRef = useRef<number>(0);
 
   const currentIndex = frames.findIndex((f) => f.id === selectedFrameId);
+  
+  // Keep ref in sync
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
 
   // Smooth playback with tweening between frames
   useEffect(() => {
@@ -32,12 +38,13 @@ export const FramePlayback = () => {
         cancelAnimationFrame(animationRef.current);
         animationRef.current = null;
       }
+      lastFrameTimeRef.current = 0;
       setTweenProgress(0);
       return;
     }
 
     const frameInterval = 1000 / (fps * playbackSpeed);
-    const tweenSteps = 4; // Number of tween steps between frames for smooth motion
+    lastFrameTimeRef.current = 0; // Reset on play
 
     const animate = (timestamp: number) => {
       if (!lastFrameTimeRef.current) {
@@ -51,7 +58,8 @@ export const FramePlayback = () => {
       setTweenProgress(progress);
 
       if (elapsed >= frameInterval) {
-        let nextIndex = currentIndex + 1;
+        const currentIdx = currentIndexRef.current;
+        let nextIndex = currentIdx + 1;
         
         if (nextIndex >= frames.length) {
           if (loop) {
@@ -59,6 +67,10 @@ export const FramePlayback = () => {
           } else {
             setIsPlaying(false);
             setTweenProgress(0);
+            if (animationRef.current) {
+              cancelAnimationFrame(animationRef.current);
+              animationRef.current = null;
+            }
             return;
           }
         }
@@ -68,7 +80,9 @@ export const FramePlayback = () => {
         setTweenProgress(0);
       }
 
-      animationRef.current = requestAnimationFrame(animate);
+      if (isPlaying) {
+        animationRef.current = requestAnimationFrame(animate);
+      }
     };
 
     animationRef.current = requestAnimationFrame(animate);
@@ -76,15 +90,19 @@ export const FramePlayback = () => {
     return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
       }
+      lastFrameTimeRef.current = 0;
       setTweenProgress(0);
     };
-  }, [isPlaying, currentIndex, frames, fps, playbackSpeed, loop, selectFrame, setIsPlaying]);
+  }, [isPlaying, frames, fps, playbackSpeed, loop, selectFrame, setIsPlaying]);
 
   const handlePlayPause = () => {
-    setIsPlaying(!isPlaying);
-    if (!isPlaying) {
+    const newPlayingState = !isPlaying;
+    setIsPlaying(newPlayingState);
+    if (newPlayingState) {
       lastFrameTimeRef.current = 0;
+      setTweenProgress(0);
     }
   };
 
