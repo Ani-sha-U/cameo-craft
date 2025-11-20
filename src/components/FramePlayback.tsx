@@ -23,13 +23,18 @@ export const FramePlayback = () => {
   const lastFrameTimeRef = useRef<number>(0);
   const [tweenProgress, setTweenProgress] = useState<number>(0);
   const currentIndexRef = useRef<number>(0);
+  const isPlayingRef = useRef<boolean>(false);
 
   const currentIndex = frames.findIndex((f) => f.id === selectedFrameId);
   
-  // Keep ref in sync
+  // Keep refs in sync
   useEffect(() => {
     currentIndexRef.current = currentIndex;
   }, [currentIndex]);
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
 
   // Smooth playback with tweening between frames
   useEffect(() => {
@@ -66,6 +71,7 @@ export const FramePlayback = () => {
             nextIndex = 0;
           } else {
             setIsPlaying(false);
+            isPlayingRef.current = false;
             setTweenProgress(0);
             if (animationRef.current) {
               cancelAnimationFrame(animationRef.current);
@@ -80,8 +86,15 @@ export const FramePlayback = () => {
         setTweenProgress(0);
       }
 
-      if (isPlaying) {
+      // Check ref instead of closure variable
+      if (isPlayingRef.current) {
         animationRef.current = requestAnimationFrame(animate);
+      } else {
+        // Stop animation if playing was toggled off
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+          animationRef.current = null;
+        }
       }
     };
 
