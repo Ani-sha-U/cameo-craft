@@ -11,6 +11,7 @@ export interface Frame {
     panX: number;
     panY: number;
   };
+  preloadedImage?: HTMLImageElement; // Cache preloaded image
 }
 
 interface FramesStore {
@@ -21,6 +22,7 @@ interface FramesStore {
   fps: number;
   onionSkinEnabled: boolean;
   onionSkinRange: number;
+  preloadedFrames: Map<string, HTMLImageElement>; // Store all preloaded frames
   
   addFrames: (frames: Frame[]) => void;
   selectFrame: (id: string) => void;
@@ -35,6 +37,7 @@ interface FramesStore {
   setOnionSkinEnabled: (enabled: boolean) => void;
   setOnionSkinRange: (range: number) => void;
   interpolateFrames: (startFrameId: string, endFrameId: string, numFrames: number) => void;
+  preloadAllFrames: () => Promise<void>; // Preload all frame images
 }
 
 export const useFramesStore = create<FramesStore>((set, get) => ({
@@ -45,6 +48,7 @@ export const useFramesStore = create<FramesStore>((set, get) => ({
   fps: 12,
   onionSkinEnabled: false,
   onionSkinRange: 2,
+  preloadedFrames: new Map(),
 
   addFrames: (frames) => {
     set({ frames });
@@ -121,7 +125,7 @@ export const useFramesStore = create<FramesStore>((set, get) => ({
   },
 
   clearFrames: () => {
-    set({ frames: [], selectedFrameId: null });
+    set({ frames: [], selectedFrameId: null, preloadedFrames: new Map() });
   },
 
   setIsExtracting: (isExtracting) => {
@@ -212,5 +216,33 @@ export const useFramesStore = create<FramesStore>((set, get) => ({
         console.error('Failed to compose interpolated frame:', error);
       }
     }
+  },
+
+  preloadAllFrames: async () => {
+    const { frames } = get();
+    const preloadedMap = new Map<string, HTMLImageElement>();
+    
+    await Promise.all(
+      frames.map(frame => 
+        new Promise<void>((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          
+          img.onload = () => {
+            preloadedMap.set(frame.id, img);
+            resolve();
+          };
+          
+          img.onerror = () => {
+            console.warn(`Failed to preload frame: ${frame.id}`);
+            resolve(); // Continue even if one fails
+          };
+          
+          img.src = frame.thumbnail;
+        })
+      )
+    );
+    
+    set({ preloadedFrames: preloadedMap });
   },
 }));

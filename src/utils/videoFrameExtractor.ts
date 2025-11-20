@@ -15,7 +15,7 @@ export async function extractFramesFromVideo({
     const video = document.createElement('video');
     video.crossOrigin = 'anonymous';
     video.src = videoUrl;
-    video.preload = 'metadata';
+    video.preload = 'auto'; // Changed from 'metadata' to ensure full video loads
 
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -25,13 +25,13 @@ export async function extractFramesFromVideo({
       return;
     }
 
-    video.addEventListener('loadedmetadata', () => {
+    video.addEventListener('loadedmetadata', async () => {
       const duration = video.duration;
       
       // Auto-detect FPS from video if not provided (assume 30fps for most videos)
-      // We can't directly get FPS from HTML5 video, so we use a reasonable default
       const actualFPS = framesPerSecond || 30;
       
+      // Extract EVERY frame - use very small interval to ensure we don't miss any
       const interval = 1 / actualFPS;
       const framesToExtract = Math.min(
         Math.floor(duration * actualFPS),
@@ -42,53 +42,77 @@ export async function extractFramesFromVideo({
       canvas.height = video.videoHeight;
 
       const frames: Frame[] = [];
-      let currentFrame = 0;
+      let currentFrameIndex = 0;
+      let seekInProgress = false;
 
-      const captureFrame = () => {
-        if (currentFrame >= framesToExtract) {
-          resolve(frames);
-          return;
-        }
+      const captureFrame = (): Promise<void> => {
+        return new Promise((resolveCapture) => {
+          if (currentFrameIndex >= framesToExtract) {
+            resolveCapture();
+            return;
+          }
 
-        const timestamp = currentFrame * interval;
-        video.currentTime = timestamp;
+          const timestamp = currentFrameIndex * interval;
+          
+          // Ensure we don't start a new seek while one is in progress
+          if (seekInProgress) {
+            resolveCapture();
+            return;
+          }
+          
+          seekInProgress = true;
+          
+          const onSeeked = () => {
+            video.removeEventListener('seeked', onSeeked);
+            
+            // Draw current frame to canvas
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Convert to high-quality thumbnail
+            const thumbnailCanvas = document.createElement('canvas');
+            const thumbnailCtx = thumbnailCanvas.getContext('2d');
+            const thumbnailWidth = 480;
+            const thumbnailHeight = (canvas.height / canvas.width) * thumbnailWidth;
+
+            thumbnailCanvas.width = thumbnailWidth;
+            thumbnailCanvas.height = thumbnailHeight;
+
+            if (thumbnailCtx) {
+              thumbnailCtx.drawImage(canvas, 0, 0, thumbnailWidth, thumbnailHeight);
+              const thumbnail = thumbnailCanvas.toDataURL('image/jpeg', 0.95);
+
+              frames.push({
+                id: `frame_${currentFrameIndex}_${Date.now()}`,
+                thumbnail,
+                timestamp: video.currentTime,
+                elements: [],
+                canvasState: {
+                  zoom: 1,
+                  panX: 0,
+                  panY: 0,
+                },
+              });
+            }
+
+            seekInProgress = false;
+            currentFrameIndex++;
+            resolveCapture();
+          };
+          
+          video.addEventListener('seeked', onSeeked, { once: true });
+          video.currentTime = timestamp;
+        });
       };
 
-      video.addEventListener('seeked', () => {
-        // Draw current frame to canvas
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        // Convert to thumbnail (higher quality for better preview)
-        const thumbnailCanvas = document.createElement('canvas');
-        const thumbnailCtx = thumbnailCanvas.getContext('2d');
-        const thumbnailWidth = 480;
-        const thumbnailHeight = (canvas.height / canvas.width) * thumbnailWidth;
-
-        thumbnailCanvas.width = thumbnailWidth;
-        thumbnailCanvas.height = thumbnailHeight;
-
-        if (thumbnailCtx) {
-          thumbnailCtx.drawImage(canvas, 0, 0, thumbnailWidth, thumbnailHeight);
-          const thumbnail = thumbnailCanvas.toDataURL('image/jpeg', 0.95);
-
-          frames.push({
-            id: `frame_${currentFrame}_${Date.now()}`,
-            thumbnail,
-            timestamp: video.currentTime,
-            elements: [],
-            canvasState: {
-              zoom: 1,
-              panX: 0,
-              panY: 0,
-            },
-          });
+      // Sequential frame extraction to avoid race conditions
+      try {
+        for (let i = 0; i < framesToExtract; i++) {
+          await captureFrame();
         }
-
-        currentFrame++;
-        captureFrame();
-      });
-
-      captureFrame();
+        resolve(frames);
+      } catch (error) {
+        reject(error);
+      }
     });
 
     video.addEventListener('error', (e) => {

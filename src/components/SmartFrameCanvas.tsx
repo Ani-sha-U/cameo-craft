@@ -16,7 +16,7 @@ interface SmartFrameCanvasProps {
  * - Real-time element updates
  */
 export const SmartFrameCanvas = ({ className }: SmartFrameCanvasProps) => {
-  const { frames, selectedFrameId, selectFrame, fps } = useFramesStore();
+  const { frames, selectedFrameId, selectFrame, fps, preloadAllFrames, preloadedFrames } = useFramesStore();
   const { isPlaying, loop, playbackSpeed, setIsPlaying } = useEditorStore();
   const [tweenedElements, setTweenedElements] = useState<Element[] | undefined>(undefined);
   
@@ -24,9 +24,20 @@ export const SmartFrameCanvas = ({ className }: SmartFrameCanvasProps) => {
   const lastFrameTimeRef = useRef<number>(0);
   const currentIndexRef = useRef<number>(0);
   const isPlayingRef = useRef<boolean>(false);
+  const preloadedRef = useRef<boolean>(false);
 
   const currentIndex = frames.findIndex((f) => f.id === selectedFrameId);
   const currentFrame = frames[currentIndex];
+
+  // Preload all frames when frames change
+  useEffect(() => {
+    if (frames.length > 0 && !preloadedRef.current) {
+      preloadedRef.current = true;
+      preloadAllFrames().then(() => {
+        console.log(`Preloaded ${frames.length} frames`);
+      });
+    }
+  }, [frames, preloadAllFrames]);
 
   // Keep refs in sync
   useEffect(() => {
