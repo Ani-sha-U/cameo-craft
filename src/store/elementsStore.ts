@@ -70,7 +70,7 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
 
     try {
       const { data, error } = await supabase.functions.invoke('separateElements', {
-        body: { frameImage, useMock: true }
+        body: { frameImage, useMock: false }
       });
 
       if (error || !data?.success) {
