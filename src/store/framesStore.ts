@@ -42,7 +42,7 @@ export const useFramesStore = create<FramesStore>((set, get) => ({
   selectedFrameId: null,
   isExtracting: false,
   isPlaying: false,
-  fps: 24,
+  fps: 12,
   onionSkinEnabled: false,
   onionSkinRange: 2,
 
