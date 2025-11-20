@@ -2,14 +2,14 @@ import { Frame } from '@/store/framesStore';
 
 interface ExtractFramesOptions {
   videoUrl: string;
-  framesPerSecond?: number; // How many frames to extract per second (default: 1)
-  maxFrames?: number; // Maximum number of frames to extract (default: 100)
+  framesPerSecond?: number; // How many frames to extract per second (default: 3)
+  maxFrames?: number; // Maximum number of frames to extract (default: 300)
 }
 
 export async function extractFramesFromVideo({
   videoUrl,
-  framesPerSecond = 1,
-  maxFrames = 100,
+  framesPerSecond = 3,
+  maxFrames = 300,
 }: ExtractFramesOptions): Promise<Frame[]> {
   return new Promise((resolve, reject) => {
     const video = document.createElement('video');
