@@ -82,14 +82,20 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
         return;
       }
 
+      // Center elements in a typical 1920x1080 canvas with some offset per element
+      const canvasWidth = 1920;
+      const canvasHeight = 1080;
+      const elementWidth = 300;
+      const elementHeight = 300;
+      
       const newElements: Element[] = segmentedElements.map((el, idx) => ({
         id: el.id,
         label: el.label,
         image: el.image,
-        x: 50 + idx * 20,
-        y: 50 + idx * 20,
-        width: 200,
-        height: 200,
+        x: (canvasWidth - elementWidth) / 2 + idx * 30,
+        y: (canvasHeight - elementHeight) / 2 + idx * 30,
+        width: elementWidth,
+        height: elementHeight,
         rotation: 0,
         opacity: 100,
         blur: 0,
