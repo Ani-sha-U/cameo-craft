@@ -89,7 +89,7 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
       const elementHeight = 300;
       
       const newElements: Element[] = segmentedElements.map((el, idx) => ({
-        id: el.id,
+        id: `element_${Date.now()}_${idx}`,
         label: el.label,
         image: el.image,
         x: (canvasWidth - elementWidth) / 2 + idx * 30,
@@ -105,6 +105,8 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
         maskImage: undefined,
       }));
 
+      // IMPORTANT: Only set elements in the store, don't add to frames here
+      // The UI will handle adding to specific frames
       set({ elements: newElements, isProcessing: false });
       toast.success(`Extracted ${newElements.length} elements locally!`);
     } catch (error) {

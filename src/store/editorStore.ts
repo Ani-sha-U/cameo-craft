@@ -134,12 +134,19 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const { history, historyIndex } = get();
     if (historyIndex > 0) {
       const newIndex = historyIndex - 1;
+      const previousState = history[newIndex];
+      
+      // Restore frames state
+      const { restoreFrames } = useFramesStore.getState();
+      if (previousState?.frames) {
+        restoreFrames(previousState.frames);
+      }
+      
       set({
         historyIndex: newIndex,
         canUndo: newIndex > 0,
         canRedo: true,
       });
-      // Apply history state here
     }
   },
   
@@ -147,12 +154,19 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const { history, historyIndex } = get();
     if (historyIndex < history.length - 1) {
       const newIndex = historyIndex + 1;
+      const nextState = history[newIndex];
+      
+      // Restore frames state
+      const { restoreFrames } = useFramesStore.getState();
+      if (nextState?.frames) {
+        restoreFrames(nextState.frames);
+      }
+      
       set({
         historyIndex: newIndex,
         canUndo: true,
         canRedo: newIndex < history.length - 1,
       });
-      // Apply history state here
     }
   },
 }));

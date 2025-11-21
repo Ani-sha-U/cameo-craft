@@ -38,6 +38,7 @@ interface FramesStore {
   setOnionSkinRange: (range: number) => void;
   interpolateFrames: (startFrameId: string, endFrameId: string, numFrames: number) => void;
   preloadAllFrames: () => Promise<void>; // Preload all frame images
+  restoreFrames: (frames: Frame[]) => void; // Restore frames for undo/redo
 }
 
 export const useFramesStore = create<FramesStore>((set, get) => ({
@@ -68,6 +69,10 @@ export const useFramesStore = create<FramesStore>((set, get) => ({
         frame.id === frameId ? { ...frame, elements } : frame
       ),
     }));
+    
+    // Add to history
+    const { addToHistory } = require('./editorStore').useEditorStore.getState();
+    addToHistory({ frames: get().frames });
   },
 
   updateFrameCanvasState: (frameId, canvasState) => {
@@ -244,5 +249,9 @@ export const useFramesStore = create<FramesStore>((set, get) => ({
     );
     
     set({ preloadedFrames: preloadedMap });
+  },
+
+  restoreFrames: (frames) => {
+    set({ frames });
   },
 }));

@@ -1,6 +1,7 @@
 import { useElementsStore, Element } from "@/store/elementsStore";
 import { useFramesStore } from "@/store/framesStore";
 import { useRef, useEffect, useState } from "react";
+import { ElementTransformControls } from "./ElementTransformControls";
 
 interface DragState {
   id: string;
@@ -8,20 +9,11 @@ interface DragState {
   startY: number;
 }
 
-interface ResizeState {
-  id: string;
-  startX: number;
-  startY: number;
-  startWidth: number;
-  startHeight: number;
-}
-
 export const ElementsCanvas = () => {
   const { elements, selectedElementId, setSelectedElement, updateElement } = useElementsStore();
   const { frames, selectedFrameId, updateFrameElements, onionSkinEnabled, onionSkinRange } = useFramesStore();
   const canvasRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState<DragState | null>(null);
-  const [resizing, setResizing] = useState<ResizeState | null>(null);
 
   // Get current frame's elements
   const currentFrame = frames.find((f) => f.id === selectedFrameId);
@@ -64,53 +56,34 @@ export const ElementsCanvas = () => {
   };
 
   const handleMouseMove = (e: MouseEvent) => {
-    if (dragging) {
-      const newX = e.clientX - dragging.startX;
-      const newY = e.clientY - dragging.startY;
+    if (!dragging) return;
 
-      if (selectedFrameId && currentFrame) {
-        const updatedElements = currentFrame.elements.map((el) =>
-          el.id === dragging.id ? { ...el, x: newX, y: newY } : el
-        );
-        updateFrameElements(selectedFrameId, updatedElements);
-      } else {
-        updateElement(dragging.id, { x: newX, y: newY });
-      }
-    } else if (resizing) {
-      const deltaX = e.clientX - resizing.startX;
-      const deltaY = e.clientY - resizing.startY;
-      
-      const newWidth = Math.max(50, resizing.startWidth + deltaX);
-      const newHeight = Math.max(50, resizing.startHeight + deltaY);
+    const newX = e.clientX - dragging.startX;
+    const newY = e.clientY - dragging.startY;
 
-      if (selectedFrameId && currentFrame) {
-        const updatedElements = currentFrame.elements.map((el) =>
-          el.id === resizing.id ? { ...el, width: newWidth, height: newHeight } : el
-        );
-        updateFrameElements(selectedFrameId, updatedElements);
-      } else {
-        updateElement(resizing.id, { width: newWidth, height: newHeight });
-      }
+    if (selectedFrameId && currentFrame) {
+      const updatedElements = currentFrame.elements.map((el) =>
+        el.id === dragging.id ? { ...el, x: newX, y: newY } : el
+      );
+      updateFrameElements(selectedFrameId, updatedElements);
+    } else {
+      updateElement(dragging.id, { x: newX, y: newY });
     }
   };
 
   const handleMouseUp = () => {
     setDragging(null);
-    setResizing(null);
   };
 
-  const handleResizeMouseDown = (e: React.MouseEvent, elementId: string) => {
-    e.stopPropagation();
-    const element = displayElements.find(el => el.id === elementId);
-    if (!element) return;
-
-    setResizing({
-      id: elementId,
-      startX: e.clientX,
-      startY: e.clientY,
-      startWidth: element.width,
-      startHeight: element.height,
-    });
+  const handleElementUpdate = (elementId: string, updates: Partial<Element>) => {
+    if (selectedFrameId && currentFrame) {
+      const updatedElements = currentFrame.elements.map((el) =>
+        el.id === elementId ? { ...el, ...updates } : el
+      );
+      updateFrameElements(selectedFrameId, updatedElements);
+    } else {
+      updateElement(elementId, updates);
+    }
   };
 
   const handleCanvasDrop = (e: React.DragEvent) => {
@@ -195,7 +168,7 @@ export const ElementsCanvas = () => {
   };
 
   useEffect(() => {
-    if (dragging || resizing) {
+    if (dragging) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
       return () => {
@@ -203,7 +176,7 @@ export const ElementsCanvas = () => {
         window.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [dragging, resizing, selectedFrameId, currentFrame]);
+  }, [dragging, selectedFrameId, currentFrame]);
 
   const renderElement = (element: Element, opacity: number = 1, isOnionSkin: boolean = false) => (
     <div
@@ -217,7 +190,6 @@ export const ElementsCanvas = () => {
         transform: `rotate(${element.rotation}deg)`,
         opacity: (element.opacity / 100) * opacity,
         filter: `blur(${element.blur}px) brightness(${element.brightness}%) drop-shadow(0 0 ${element.glow}px rgba(255, 255, 255, 0.8))`,
-        border: !isOnionSkin && selectedElementId === element.id ? '2px solid hsl(var(--primary))' : 'none',
         mixBlendMode: element.blendMode,
         maskImage: element.maskImage ? `url(${element.maskImage})` : undefined,
         maskSize: 'contain',
@@ -232,27 +204,13 @@ export const ElementsCanvas = () => {
         className="w-full h-full object-contain"
         draggable={false}
       />
-      {!isOnionSkin && selectedElementId === element.id && (
-        <>
-          {/* Resize handle */}
-          <div
-            className="absolute bottom-0 right-0 w-4 h-4 bg-primary rounded-full cursor-se-resize z-10"
-            onMouseDown={(e) => handleResizeMouseDown(e, element.id)}
-          />
-          {/* Corner handles */}
-          <div
-            className="absolute top-0 right-0 w-3 h-3 bg-primary rounded-full cursor-ne-resize z-10"
-            onMouseDown={(e) => handleResizeMouseDown(e, element.id)}
-          />
-          <div
-            className="absolute bottom-0 left-0 w-3 h-3 bg-primary rounded-full cursor-sw-resize z-10"
-            onMouseDown={(e) => handleResizeMouseDown(e, element.id)}
-          />
-          <div
-            className="absolute top-0 left-0 w-3 h-3 bg-primary rounded-full cursor-nw-resize z-10"
-            onMouseDown={(e) => handleResizeMouseDown(e, element.id)}
-          />
-        </>
+      
+      {!isOnionSkin && (
+        <ElementTransformControls
+          element={element}
+          isSelected={selectedElementId === element.id}
+          onUpdate={(updates) => handleElementUpdate(element.id, updates)}
+        />
       )}
     </div>
   );

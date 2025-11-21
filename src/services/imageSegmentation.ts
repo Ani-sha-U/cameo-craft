@@ -51,7 +51,7 @@ export class ImageSegmentationService {
     const height = categoryMask.height;
     const maskData = categoryMask.getAsUint8Array();
 
-    // Find unique categories
+    // Find unique categories (excluding background category 0)
     const categories = new Set<number>();
     for (let i = 0; i < maskData.length; i++) {
       if (maskData[i] > 0) {
@@ -68,13 +68,15 @@ export class ImageSegmentationService {
     canvas.width = width;
     canvas.height = height;
 
-    // Process each category
+    // Process each category ONCE
     let elementIndex = 0;
     for (const category of categories) {
       if (elementIndex >= 10) break; // Limit to 10 elements
 
-      // Draw original image
+      // Clear canvas
       ctx.clearRect(0, 0, width, height);
+      
+      // Draw original image
       ctx.drawImage(originalImage, 0, 0, width, height);
 
       // Get image data
@@ -93,8 +95,9 @@ export class ImageSegmentationService {
       // Convert to base64
       const base64 = canvas.toDataURL('image/png');
 
+      // Create exactly ONE element per category
       elements.push({
-        id: `element_${elementIndex}`,
+        id: `segment_${category}_${Date.now()}_${elementIndex}`,
         label: `Element ${elementIndex + 1}`,
         image: base64,
         score: 0.9
