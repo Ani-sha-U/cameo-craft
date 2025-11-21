@@ -102,6 +102,7 @@ export const AssetLibrary = ({ isCollapsed, onToggleCollapse }: AssetLibraryProp
       glow: 0,
       blendMode: 'normal' as const,
       maskImage: undefined,
+      easing: 'easeInOutCubic' as const,
     };
 
     addElement(newElement);

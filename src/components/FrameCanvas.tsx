@@ -1,5 +1,5 @@
 import { useFramesStore } from '@/store/framesStore';
-import { useElementsStore } from '@/store/elementsStore';
+import { useElementsStore, Element } from '@/store/elementsStore';
 import { useCameraStore } from '@/store/cameraStore';
 import { useEffect, useRef } from 'react';
 
@@ -10,28 +10,6 @@ interface FrameCanvasProps {
   height?: number;
   onFrameRendered?: (canvas: HTMLCanvasElement) => void;
   tweenedElements?: Element[]; // Override frame elements with tweened versions
-}
-
-interface Element {
-  id: string;
-  label: string;
-  image: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  rotation: number;
-  opacity: number;
-  blur: number;
-  brightness: number;
-  glow?: number;
-  blendMode?: string;
-  mask?: string;
-  easing?: 'linear' | 'easeIn' | 'easeOut' | 'easeInOut' | 'easeInCubic' | 'easeOutCubic' | 'easeInOutCubic' | 'easeInQuart' | 'easeOutQuart' | 'easeInOutQuart';
-  motionBlur?: {
-    amount: number;
-    angle: number;
-  };
 }
 
 export const FrameCanvas = ({ 

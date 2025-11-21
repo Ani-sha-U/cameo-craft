@@ -141,6 +141,7 @@ export const ElementsCanvas = () => {
         glow: 0,
         blendMode: 'normal' as const,
         maskImage: undefined,
+        easing: 'easeInOutCubic' as const,
       };
     }
     
