@@ -54,67 +54,67 @@ export const FrameCanvas = ({
     // Use tweened elements if provided, otherwise use frame elements
     const elementsToRender = tweenedElements || currentFrame.elements;
 
-    // SINGLE RENDER CYCLE - Clear once at the start
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Save context state before applying camera transforms
-    ctx.save();
-
-    // Apply camera transforms
-    const { zoom, panX, panY, rotate, dolly } = currentTransform;
-    
-    // Apply transforms in correct order: translate -> rotate -> scale
-    ctx.translate(canvas.width / 2 + panX, canvas.height / 2 + panY);
-    ctx.rotate((rotate * Math.PI) / 180);
-    ctx.scale(zoom + dolly * 0.1, zoom + dolly * 0.1);
-    ctx.translate(-canvas.width / 2, -canvas.height / 2);
-
     // Use masked thumbnail if available, otherwise use original
     const frameImageSrc = currentFrame.maskedThumbnail || currentFrame.thumbnail;
     
-    // Use preloaded image if available, otherwise load new one
+    // CRITICAL: Determine which image to use - preloaded for originals, fresh load for masked
     const preloadedImg = preloadedFrames.get(currentFrame.id);
+    const usePreloaded = preloadedImg && preloadedImg.complete && !currentFrame.maskedThumbnail;
     
-    if (preloadedImg && preloadedImg.complete && !currentFrame.maskedThumbnail) {
-      // Use preloaded image - no waiting needed (only if no masked thumbnail)
-      ctx.drawImage(preloadedImg, 0, 0, canvas.width, canvas.height);
+    // Single render function to ensure consistent draw order
+    const renderFrame = (frameImg: HTMLImageElement) => {
+      // SINGLE RENDER CYCLE - Clear once at the start
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw elements immediately after frame
+      // Save context state before applying camera transforms
+      ctx.save();
+
+      // Apply camera transforms
+      const { zoom, panX, panY, rotate, dolly } = currentTransform;
+      
+      // Apply transforms in correct order: translate -> rotate -> scale
+      ctx.translate(canvas.width / 2 + panX, canvas.height / 2 + panY);
+      ctx.rotate((rotate * Math.PI) / 180);
+      ctx.scale(zoom + dolly * 0.1, zoom + dolly * 0.1);
+      ctx.translate(-canvas.width / 2, -canvas.height / 2);
+
+      // ALWAYS draw base frame FIRST
+      ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
+
+      // Then draw all elements after frame is rendered
       drawElements(ctx, canvas, elementsToRender, onFrameRendered);
       
       // Restore context state
       ctx.restore();
+    };
+
+    if (usePreloaded) {
+      // Preloaded image is ready - render immediately
+      renderFrame(preloadedImg);
     } else {
-      // Load image (either masked thumbnail or fallback to original)
+      // Load fresh image (masked thumbnail or fallback)
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.src = frameImageSrc;
       
-      img.onload = () => {
-        // Clear again before drawing (in case of async load)
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.save();
-        
-        // Reapply camera transforms
-        ctx.translate(canvas.width / 2 + panX, canvas.height / 2 + panY);
-        ctx.rotate((rotate * Math.PI) / 180);
-        ctx.scale(zoom + dolly * 0.1, zoom + dolly * 0.1);
-        ctx.translate(-canvas.width / 2, -canvas.height / 2);
-        
-        // Draw base frame (masked if available)
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        
-        // Draw all elements in one pass
-        drawElements(ctx, canvas, elementsToRender, onFrameRendered);
-        
-        // Restore context state
-        ctx.restore();
-      };
-      
-      img.onerror = () => {
-        console.error('Failed to load frame image:', currentFrame.id);
-        ctx.restore();
-      };
+      // Wait for image to decode before rendering
+      img.decode()
+        .then(() => {
+          renderFrame(img);
+        })
+        .catch(() => {
+          // Fallback: try onload
+          img.onload = () => renderFrame(img);
+          img.onerror = () => {
+            console.error('Failed to load frame image:', currentFrame.id);
+            // Draw a placeholder or fallback to preloaded
+            if (preloadedImg) {
+              renderFrame(preloadedImg);
+            } else {
+              ctx.restore();
+            }
+          };
+        });
     }
   }, [currentFrame, width, height, onFrameRendered, tweenedElements, preloadedFrames, currentTransform]);
 
