@@ -49,8 +49,8 @@ export const FrameStrip = () => {
         <h3 className="text-xs font-semibold">Frames ({frames.length})</h3>
         <FrameInterpolationDialog />
       </div>
-      <div className="w-full overflow-x-auto overflow-y-hidden">
-        <div className="flex gap-1.5 pb-1 min-w-max">
+      <div className="w-full overflow-x-auto overflow-y-hidden" style={{ maxHeight: '120px' }}>
+        <div className="flex gap-1.5 pb-1" style={{ minWidth: 'max-content' }}>
           {frames.map((frame, index) => (
             <div
               key={frame.id}
