@@ -7,6 +7,11 @@ export interface SegmentedElement {
   score: number;
 }
 
+export interface SegmentationResult {
+  elements: SegmentedElement[];
+  maskedFrame: string; // Frame with all extracted elements removed (transparent)
+}
+
 export class ImageSegmentationService {
   private segmenter: ImageSegmenter | null = null;
 
@@ -27,7 +32,7 @@ export class ImageSegmentationService {
     });
   }
 
-  async segmentImage(imageElement: HTMLImageElement): Promise<SegmentedElement[]> {
+  async segmentImage(imageElement: HTMLImageElement): Promise<SegmentationResult> {
     await this.initialize();
     
     if (!this.segmenter) {
@@ -46,7 +51,7 @@ export class ImageSegmentationService {
   private async convertMaskToElements(
     categoryMask: any,
     originalImage: HTMLImageElement
-  ): Promise<SegmentedElement[]> {
+  ): Promise<SegmentationResult> {
     const width = categoryMask.width;
     const height = categoryMask.height;
     const maskData = categoryMask.getAsUint8Array();
@@ -63,12 +68,12 @@ export class ImageSegmentationService {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     
-    if (!ctx) return elements;
+    if (!ctx) return { elements: [], maskedFrame: originalImage.src };
 
     canvas.width = width;
     canvas.height = height;
 
-    // Process each category ONCE
+    // Process each category ONCE to extract elements
     let elementIndex = 0;
     for (const category of categories) {
       if (elementIndex >= 10) break; // Limit to 10 elements
@@ -106,7 +111,24 @@ export class ImageSegmentationService {
       elementIndex++;
     }
 
-    return elements;
+    // Create masked frame (original with all extracted elements removed)
+    ctx.clearRect(0, 0, width, height);
+    ctx.drawImage(originalImage, 0, 0, width, height);
+    
+    const maskedImageData = ctx.getImageData(0, 0, width, height);
+    const maskedPixels = maskedImageData.data;
+    
+    // Make all segmented pixels transparent in the base frame
+    for (let i = 0; i < maskData.length; i++) {
+      if (maskData[i] > 0) {
+        maskedPixels[i * 4 + 3] = 0; // Set alpha to 0 for all extracted elements
+      }
+    }
+    
+    ctx.putImageData(maskedImageData, 0, 0);
+    const maskedFrame = canvas.toDataURL('image/png');
+
+    return { elements, maskedFrame };
   }
 
   cleanup() {

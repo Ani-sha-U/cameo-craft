@@ -54,6 +54,9 @@ export const FrameCanvas = ({
     // Use tweened elements if provided, otherwise use frame elements
     const elementsToRender = tweenedElements || currentFrame.elements;
 
+    // SINGLE RENDER CYCLE - Clear once at the start
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
     // Save context state before applying camera transforms
     ctx.save();
 
@@ -66,11 +69,14 @@ export const FrameCanvas = ({
     ctx.scale(zoom + dolly * 0.1, zoom + dolly * 0.1);
     ctx.translate(-canvas.width / 2, -canvas.height / 2);
 
+    // Use masked thumbnail if available, otherwise use original
+    const frameImageSrc = currentFrame.maskedThumbnail || currentFrame.thumbnail;
+    
     // Use preloaded image if available, otherwise load new one
     const preloadedImg = preloadedFrames.get(currentFrame.id);
     
-    if (preloadedImg && preloadedImg.complete) {
-      // Use preloaded image - no waiting needed
+    if (preloadedImg && preloadedImg.complete && !currentFrame.maskedThumbnail) {
+      // Use preloaded image - no waiting needed (only if no masked thumbnail)
       ctx.drawImage(preloadedImg, 0, 0, canvas.width, canvas.height);
 
       // Draw elements immediately after frame
@@ -79,14 +85,28 @@ export const FrameCanvas = ({
       // Restore context state
       ctx.restore();
     } else {
-      // Fallback: load image if not preloaded
+      // Load image (either masked thumbnail or fallback to original)
       const img = new Image();
       img.crossOrigin = 'anonymous';
-      img.src = currentFrame.thumbnail;
+      img.src = frameImageSrc;
       
       img.onload = () => {
+        // Clear again before drawing (in case of async load)
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        
+        // Reapply camera transforms
+        ctx.translate(canvas.width / 2 + panX, canvas.height / 2 + panY);
+        ctx.rotate((rotate * Math.PI) / 180);
+        ctx.scale(zoom + dolly * 0.1, zoom + dolly * 0.1);
+        ctx.translate(-canvas.width / 2, -canvas.height / 2);
+        
+        // Draw base frame (masked if available)
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        // Draw all elements in one pass
         drawElements(ctx, canvas, elementsToRender, onFrameRendered);
+        
         // Restore context state
         ctx.restore();
       };

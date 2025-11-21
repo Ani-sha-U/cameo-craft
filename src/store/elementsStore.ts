@@ -26,7 +26,7 @@ interface ElementsStore {
   setSelectedElement: (id: string | null) => void;
   addElement: (element: Element) => void;
   updateElement: (id: string, updates: Partial<Element>) => void;
-  separateElements: (frameImage: string) => Promise<void>;
+  separateElements: (frameImage: string, frameId?: string) => Promise<void>;
   removeElement: (id: string) => void;
 }
 
@@ -59,7 +59,7 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
     }));
   },
 
-  separateElements: async (frameImage: string) => {
+  separateElements: async (frameImage: string, frameId?: string) => {
     if (!frameImage) {
       toast.error("No frame image provided");
       return;
@@ -72,11 +72,11 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
       const segmentationService = new ImageSegmentationService();
       const imageElement = await loadImageFromDataURL(frameImage);
       
-      const segmentedElements = await segmentationService.segmentImage(imageElement);
+      const result = await segmentationService.segmentImage(imageElement);
       
       segmentationService.cleanup();
 
-      if (segmentedElements.length === 0) {
+      if (result.elements.length === 0) {
         toast.warning("No elements detected in frame");
         set({ isProcessing: false });
         return;
@@ -88,7 +88,7 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
       const elementWidth = 300;
       const elementHeight = 300;
       
-      const newElements: Element[] = segmentedElements.map((el, idx) => ({
+      const newElements: Element[] = result.elements.map((el, idx) => ({
         id: `element_${Date.now()}_${idx}`,
         label: el.label,
         image: el.image,
@@ -105,9 +105,34 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
         maskImage: undefined,
       }));
 
-      // IMPORTANT: Only set elements in the store, don't add to frames here
-      // The UI will handle adding to specific frames
-      set({ elements: newElements, isProcessing: false });
+      // Update frame with masked thumbnail if frameId provided
+      if (frameId) {
+        const { useFramesStore } = require('@/store/framesStore');
+        const framesStore = useFramesStore.getState();
+        const frame = framesStore.frames.find((f: any) => f.id === frameId);
+        
+        if (frame) {
+          // Update frame with masked thumbnail and add elements
+          const updatedFrame = {
+            ...frame,
+            maskedThumbnail: result.maskedFrame,
+            elements: [...frame.elements, ...newElements]
+          };
+          
+          const updatedFrames = framesStore.frames.map((f: any) => 
+            f.id === frameId ? updatedFrame : f
+          );
+          
+          framesStore.addFrames(updatedFrames);
+        }
+      }
+
+      // Store elements globally as well for the Elements Panel
+      set({ 
+        elements: newElements, 
+        isProcessing: false 
+      });
+      
       toast.success(`Extracted ${newElements.length} elements locally!`);
     } catch (error) {
       toast.error("Failed to separate elements", {

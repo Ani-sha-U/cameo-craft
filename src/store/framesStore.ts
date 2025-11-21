@@ -4,6 +4,7 @@ import { Element } from './elementsStore';
 export interface Frame {
   id: string;
   thumbnail: string; // base64 image data
+  maskedThumbnail?: string; // thumbnail with extracted elements removed (transparent)
   timestamp: number; // in seconds
   elements: Element[]; // elements on this frame
   canvasState: {
