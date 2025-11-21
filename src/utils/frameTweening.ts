@@ -1,31 +1,61 @@
 import { Element } from '@/store/elementsStore';
 
 /**
+ * Linear interpolation between two values
+ */
+const lerp = (start: number, end: number, t: number): number => {
+  return start + (end - start) * t;
+};
+
+/**
+ * Interpolate rotation angle, taking shortest path
+ */
+const lerpAngle = (startAngle: number, endAngle: number, t: number): number => {
+  let diff = endAngle - startAngle;
+  
+  // Normalize to shortest path
+  while (diff > 180) diff -= 360;
+  while (diff < -180) diff += 360;
+  
+  return startAngle + diff * t;
+};
+
+/**
+ * Easing function for smooth motion (ease-in-out cubic)
+ */
+const easeInOutCubic = (x: number): number => {
+  return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+};
+
+/**
  * Interpolate between two element states for smooth animation
+ * Interpolates all transform properties: x, y, width, height, rotation, opacity, blur, brightness, glow
  */
 export const tweenElement = (
   elementA: Element,
   elementB: Element,
   t: number // 0 to 1, where 0 is elementA and 1 is elementB
 ): Element => {
-  // Easing function for smooth motion
-  const easeInOutCubic = (x: number): number => {
-    return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-  };
-
   const easedT = easeInOutCubic(t);
 
   return {
     ...elementA,
-    x: elementA.x + (elementB.x - elementA.x) * easedT,
-    y: elementA.y + (elementB.y - elementA.y) * easedT,
-    width: elementA.width + (elementB.width - elementA.width) * easedT,
-    height: elementA.height + (elementB.height - elementA.height) * easedT,
-    rotation: elementA.rotation + (elementB.rotation - elementA.rotation) * easedT,
-    opacity: elementA.opacity + (elementB.opacity - elementA.opacity) * easedT,
-    blur: elementA.blur + (elementB.blur - elementA.blur) * easedT,
-    brightness: elementA.brightness + (elementB.brightness - elementA.brightness) * easedT,
-    glow: elementA.glow + (elementB.glow - elementA.glow) * easedT,
+    // Position interpolation
+    x: lerp(elementA.x, elementB.x, easedT),
+    y: lerp(elementA.y, elementB.y, easedT),
+    
+    // Scale interpolation (width/height serve as scaleX/scaleY)
+    width: lerp(elementA.width, elementB.width, easedT),
+    height: lerp(elementA.height, elementB.height, easedT),
+    
+    // Rotation with angle wrapping for shortest path
+    rotation: lerpAngle(elementA.rotation, elementB.rotation, easedT),
+    
+    // Visual property interpolation
+    opacity: lerp(elementA.opacity, elementB.opacity, easedT),
+    blur: lerp(elementA.blur, elementB.blur, easedT),
+    brightness: lerp(elementA.brightness, elementB.brightness, easedT),
+    glow: lerp(elementA.glow, elementB.glow, easedT),
   };
 };
 

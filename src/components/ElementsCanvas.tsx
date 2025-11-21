@@ -1,5 +1,6 @@
 import { useElementsStore, Element } from "@/store/elementsStore";
 import { useFramesStore } from "@/store/framesStore";
+import { useEditorStore } from "@/store/editorStore";
 import { useRef, useEffect, useState } from "react";
 import { ElementTransformControls } from "./ElementTransformControls";
 
@@ -12,6 +13,7 @@ interface DragState {
 export const ElementsCanvas = () => {
   const { elements, selectedElementId, setSelectedElement, updateElement } = useElementsStore();
   const { frames, selectedFrameId, updateFrameElements, onionSkinEnabled, onionSkinRange } = useFramesStore();
+  const { isPlaying } = useEditorStore();
   const canvasRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState<DragState | null>(null);
 
@@ -216,6 +218,9 @@ export const ElementsCanvas = () => {
   );
 
   if (displayElements.length === 0 && onionSkinFrames.length === 0) return null;
+
+  // Hide DOM elements during playback - FrameCanvas handles interpolated rendering
+  if (isPlaying) return null;
 
   return (
     <div 
