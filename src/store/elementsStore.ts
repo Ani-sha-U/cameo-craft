@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
+import { ImageSegmentationService, loadImageFromDataURL } from '@/services/imageSegmentation';
 
 export interface Element {
   id: string;
@@ -66,26 +66,25 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
     }
 
     set({ isProcessing: true });
-    toast.info("Separating elements from frame...");
+    toast.info("Processing image locally (no API key needed)...");
 
     try {
-      const { data, error } = await supabase.functions.invoke('separateElements', {
-        body: { frameImage, useMock: false }
-      });
+      const segmentationService = new ImageSegmentationService();
+      const imageElement = await loadImageFromDataURL(frameImage);
+      
+      const segmentedElements = await segmentationService.segmentImage(imageElement);
+      
+      segmentationService.cleanup();
 
-      if (error || !data?.success) {
-        const message = data?.error || error?.message || 'Failed to separate elements';
-        toast.error("Element separation failed", {
-          description: message,
-        });
-        console.error('Separation error:', message);
+      if (segmentedElements.length === 0) {
+        toast.warning("No elements detected in frame");
         set({ isProcessing: false });
         return;
       }
 
-      const newElements: Element[] = data.elements.map((el: any, idx: number) => ({
-        id: el.id || `element_${idx}`,
-        label: el.label || `Element ${idx + 1}`,
+      const newElements: Element[] = segmentedElements.map((el, idx) => ({
+        id: el.id,
+        label: el.label,
         image: el.image,
         x: 50 + idx * 20,
         y: 50 + idx * 20,
@@ -101,9 +100,11 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
       }));
 
       set({ elements: newElements, isProcessing: false });
-      toast.success(`Extracted ${newElements.length} elements!`);
+      toast.success(`Extracted ${newElements.length} elements locally!`);
     } catch (error) {
-      toast.error("Failed to separate elements");
+      toast.error("Failed to separate elements", {
+        description: error instanceof Error ? error.message : "Unknown error"
+      });
       console.error(error);
       set({ isProcessing: false });
     }
