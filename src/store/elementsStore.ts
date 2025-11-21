@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { toast } from 'sonner';
 import { ImageSegmentationService, loadImageFromDataURL } from '@/services/imageSegmentation';
+import { useFramesStore } from '@/store/framesStore';
 
 export interface Element {
   id: string;
@@ -107,9 +108,8 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
 
       // Update frame with masked thumbnail if frameId provided
       if (frameId) {
-        const { useFramesStore } = require('@/store/framesStore');
         const framesStore = useFramesStore.getState();
-        const frame = framesStore.frames.find((f: any) => f.id === frameId);
+        const frame = framesStore.frames.find((f) => f.id === frameId);
         
         if (frame) {
           // Update frame with masked thumbnail and add elements
@@ -119,7 +119,7 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
             elements: [...frame.elements, ...newElements]
           };
           
-          const updatedFrames = framesStore.frames.map((f: any) => 
+          const updatedFrames = framesStore.frames.map((f) => 
             f.id === frameId ? updatedFrame : f
           );
           
