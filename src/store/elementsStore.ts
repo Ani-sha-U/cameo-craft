@@ -18,6 +18,11 @@ export interface Element {
   glow: number;
   blendMode: 'normal' | 'multiply' | 'screen' | 'overlay' | 'darken' | 'lighten';
   maskImage?: string;
+  easing?: 'linear' | 'easeIn' | 'easeOut' | 'easeInOut' | 'easeInCubic' | 'easeOutCubic' | 'easeInOutCubic' | 'easeInQuart' | 'easeOutQuart' | 'easeInOutQuart';
+  motionBlur?: {
+    amount: number;
+    angle: number;
+  };
 }
 
 interface ElementsStore {
@@ -104,6 +109,7 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
         glow: 0,
         blendMode: 'normal' as const,
         maskImage: undefined,
+        easing: 'easeInOutCubic',
       }));
 
       // Update frame with masked thumbnail if frameId provided
