@@ -32,7 +32,7 @@ export const ElementsPanel = () => {
       toast.error("No frame selected. Please select a frame first.");
       return;
     }
-    separateElements(currentFrame.thumbnail);
+    separateElements(currentFrame.thumbnail, selectedFrameId || undefined);
   };
 
   const handleDragStart = (e: React.DragEvent, element: Element) => {
