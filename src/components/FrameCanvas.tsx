@@ -27,6 +27,11 @@ interface Element {
   glow?: number;
   blendMode?: string;
   mask?: string;
+  easing?: 'linear' | 'easeIn' | 'easeOut' | 'easeInOut' | 'easeInCubic' | 'easeOutCubic' | 'easeInOutCubic' | 'easeInQuart' | 'easeOutQuart' | 'easeInOutQuart';
+  motionBlur?: {
+    amount: number;
+    angle: number;
+  };
 }
 
 export const FrameCanvas = ({ 
@@ -146,12 +151,36 @@ export const FrameCanvas = ({
           ctx.translate(element.x + element.width / 2, element.y + element.height / 2);
           ctx.rotate((element.rotation * Math.PI) / 180);
           
-          // Apply filters
+          // Apply filters with motion blur
           const filters = [];
           if (element.blur > 0) filters.push(`blur(${element.blur}px)`);
           if (element.brightness !== 100) filters.push(`brightness(${element.brightness}%)`);
           ctx.filter = filters.length > 0 ? filters.join(' ') : 'none';
           
+          // Motion blur effect: draw multiple ghost images
+          if (element.motionBlur && element.motionBlur.amount > 0) {
+            const steps = Math.ceil(element.motionBlur.amount / 2);
+            const angleRad = element.motionBlur.angle * Math.PI / 180;
+            const stepDistance = element.motionBlur.amount * 3;
+            
+            for (let i = steps; i > 0; i--) {
+              ctx.save();
+              const offsetX = Math.cos(angleRad) * stepDistance * (i / steps);
+              const offsetY = Math.sin(angleRad) * stepDistance * (i / steps);
+              ctx.globalAlpha = (element.opacity / 100) * (0.3 / steps);
+              ctx.translate(-offsetX, -offsetY);
+              ctx.drawImage(
+                elementImg,
+                -element.width / 2,
+                -element.height / 2,
+                element.width,
+                element.height
+              );
+              ctx.restore();
+            }
+          }
+          
+          // Draw main image
           ctx.drawImage(
             elementImg,
             -element.width / 2,

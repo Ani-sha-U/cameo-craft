@@ -124,6 +124,30 @@ export const ElementPropertiesPanel = () => {
         </div>
 
         <div>
+          <Label className="text-xs mb-2 block">Animation Easing</Label>
+          <Select
+            value={selectedElement.easing || 'easeInOutCubic'}
+            onValueChange={(value) => handleUpdate({ easing: value })}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="linear">Linear</SelectItem>
+              <SelectItem value="easeIn">Ease In</SelectItem>
+              <SelectItem value="easeOut">Ease Out</SelectItem>
+              <SelectItem value="easeInOut">Ease In-Out</SelectItem>
+              <SelectItem value="easeInCubic">Ease In Cubic</SelectItem>
+              <SelectItem value="easeOutCubic">Ease Out Cubic</SelectItem>
+              <SelectItem value="easeInOutCubic">Ease In-Out Cubic</SelectItem>
+              <SelectItem value="easeInQuart">Ease In Quart</SelectItem>
+              <SelectItem value="easeOutQuart">Ease Out Quart</SelectItem>
+              <SelectItem value="easeInOutQuart">Ease In-Out Quart</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
           <Label className="text-xs mb-2 block">Mask Image</Label>
           <div className="flex gap-2">
             <Input
