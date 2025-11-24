@@ -4,6 +4,8 @@
 
 This document describes the implementation of ensemble segmentation (combining MediaPipe and SAM architectures) and object tracking across frames.
 
+**⚠️ IMPORTANT:** This project uses ONLY client-side segmentation. All HuggingFace backend segmentation has been removed to eliminate conflicts and ensure consistent behavior.
+
 ## Architecture
 
 ### 1. Ensemble Segmentation (`src/services/segmentation/ensembleSegmenter.ts`)
@@ -165,6 +167,11 @@ tweenElement(
 - [x] Re-segmentation updates element correctly
 - [x] Size controls work properly
 - [x] Motion blur calculated from tracked positions
+- [x] All HuggingFace backend code removed
+- [x] No mock segmentation fallback
+- [x] Single unified render loop
+- [x] Timeline scrolls horizontally
+- [x] All transform properties interpolate (not just opacity)
 - [ ] SAM model integration (prepared, not loaded)
 - [ ] WebGPU acceleration (ONNX configured)
 
