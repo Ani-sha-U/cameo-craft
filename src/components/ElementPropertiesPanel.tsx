@@ -5,10 +5,11 @@ import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Upload } from "lucide-react";
+import { Upload, Play, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
 
 export const ElementPropertiesPanel = () => {
-  const { elements, selectedElementId, updateElement } = useElementsStore();
+  const { elements, selectedElementId, updateElement, trackElement, separateElements, isProcessing } = useElementsStore();
   const { frames, selectedFrameId, updateFrameElements } = useFramesStore();
 
   const currentFrame = frames.find((f) => f.id === selectedFrameId);
@@ -40,6 +41,22 @@ export const ElementPropertiesPanel = () => {
     reader.readAsDataURL(file);
   };
 
+  const handleTrackObject = async () => {
+    if (!selectedFrameId || !selectedElementId) {
+      toast.error("Please select a frame and element first");
+      return;
+    }
+    await trackElement(selectedElementId, selectedFrameId);
+  };
+
+  const handleResegment = async () => {
+    if (!currentFrame) {
+      toast.error("No frame selected");
+      return;
+    }
+    await separateElements(currentFrame.thumbnail, selectedFrameId);
+  };
+
   return (
     <div className="p-2 border-t border-border space-y-2 max-h-64 overflow-y-auto">
       <div className="flex items-center justify-between">
@@ -48,6 +65,52 @@ export const ElementPropertiesPanel = () => {
       </div>
 
       <div className="space-y-2">
+        {/* Tracking Controls */}
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleTrackObject} 
+            disabled={isProcessing}
+            className="flex-1"
+            size="sm"
+          >
+            <Play className="w-3 h-3 mr-2" />
+            Track
+          </Button>
+          <Button 
+            onClick={handleResegment} 
+            disabled={isProcessing}
+            variant="outline"
+            className="flex-1"
+            size="sm"
+          >
+            <RotateCcw className="w-3 h-3 mr-2" />
+            Re-segment
+          </Button>
+        </div>
+
+        {/* Size Controls */}
+        <div>
+          <Label className="text-xs">Width</Label>
+          <Slider
+            value={[selectedElement.width]}
+            min={10}
+            max={2000}
+            step={1}
+            onValueChange={([value]) => handleUpdate({ width: value })}
+          />
+        </div>
+
+        <div>
+          <Label className="text-xs">Height</Label>
+          <Slider
+            value={[selectedElement.height]}
+            min={10}
+            max={2000}
+            step={1}
+            onValueChange={([value]) => handleUpdate({ height: value })}
+          />
+        </div>
+
         <div>
           <Label className="text-xs">Opacity</Label>
           <Slider
