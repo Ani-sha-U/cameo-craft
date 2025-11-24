@@ -51,35 +51,20 @@ const applyEasing = (t: number, easingType: EasingType = 'easeInOutCubic'): numb
 /**
  * Interpolate between two element states for smooth animation
  * Interpolates all transform properties: x, y, width, height, rotation, opacity, blur, brightness, glow
- * Uses tracked positions if available
  */
 export const tweenElement = (
   elementA: Element,
   elementB: Element,
   t: number, // 0 to 1, where 0 is elementA and 1 is elementB
-  enableMotionBlur: boolean = false,
-  frameIndexA?: number,
-  frameIndexB?: number
+  enableMotionBlur: boolean = false
 ): Element => {
   // Use element's easing type or default to easeInOutCubic
   const easingType = elementA.easing || 'easeInOutCubic';
   const easedT = applyEasing(t, easingType);
 
-  // Check if element has tracked positions
-  let posA = { x: elementA.x, y: elementA.y, width: elementA.width, height: elementA.height };
-  let posB = { x: elementB.x, y: elementB.y, width: elementB.width, height: elementB.height };
-
-  if (elementA.trackedPositions && frameIndexA !== undefined && frameIndexB !== undefined) {
-    const trackedA = elementA.trackedPositions.get(frameIndexA);
-    const trackedB = elementA.trackedPositions.get(frameIndexB);
-    
-    if (trackedA) posA = trackedA;
-    if (trackedB) posB = trackedB;
-  }
-
   // Calculate velocity for motion blur
-  const deltaX = posB.x - posA.x;
-  const deltaY = posB.y - posA.y;
+  const deltaX = elementB.x - elementA.x;
+  const deltaY = elementB.y - elementA.y;
   const velocity = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
   
   // Apply motion blur if enabled and velocity is significant
@@ -87,13 +72,13 @@ export const tweenElement = (
 
   return {
     ...elementA,
-    // Position interpolation (use tracked positions if available)
-    x: lerp(posA.x, posB.x, easedT),
-    y: lerp(posA.y, posB.y, easedT),
+    // Position interpolation
+    x: lerp(elementA.x, elementB.x, easedT),
+    y: lerp(elementA.y, elementB.y, easedT),
     
-    // Scale interpolation
-    width: lerp(posA.width, posB.width, easedT),
-    height: lerp(posA.height, posB.height, easedT),
+    // Scale interpolation (width/height serve as scaleX/scaleY)
+    width: lerp(elementA.width, elementB.width, easedT),
+    height: lerp(elementA.height, elementB.height, easedT),
     
     // Rotation with angle wrapping for shortest path
     rotation: lerpAngle(elementA.rotation, elementB.rotation, easedT),
@@ -139,9 +124,7 @@ export const tweenFrameElements = (
   currentFrameElements: Element[],
   nextFrameElements: Element[],
   t: number, // 0 to 1, progress between frames
-  enableMotionBlur: boolean = true,
-  currentFrameIndex?: number,
-  nextFrameIndex?: number
+  enableMotionBlur: boolean = true
 ): Element[] => {
   const tweenedElements: Element[] = [];
 
@@ -150,17 +133,8 @@ export const tweenFrameElements = (
     const matchingElement = findMatchingElement(currentElement, nextFrameElements);
     
     if (matchingElement) {
-      // Tween between current and next with motion blur and tracked positions
-      tweenedElements.push(
-        tweenElement(
-          currentElement, 
-          matchingElement, 
-          t, 
-          enableMotionBlur,
-          currentFrameIndex,
-          nextFrameIndex
-        )
-      );
+      // Tween between current and next with motion blur
+      tweenedElements.push(tweenElement(currentElement, matchingElement, t, enableMotionBlur));
     } else {
       // Fade out element that doesn't exist in next frame
       tweenedElements.push({

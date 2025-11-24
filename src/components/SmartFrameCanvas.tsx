@@ -113,10 +113,7 @@ export const SmartFrameCanvas = ({ className }: SmartFrameCanvasProps) => {
           const tweened = tweenFrameElements(
             frames[currentIdx].elements,
             frames[nextIdx].elements,
-            progress,
-            true, // enableMotionBlur
-            currentIdx, // current frame index
-            nextIdx // next frame index
+            progress
           );
           setTweenedElements(tweened);
         }
