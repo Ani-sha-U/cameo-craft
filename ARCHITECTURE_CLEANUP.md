@@ -1,5 +1,9 @@
 # Architecture Cleanup - Complete
 
+**Last Updated**: 2025-11-24
+
+This document records the comprehensive cleanup and consolidation to fix segmentation, rendering, interpolation, and video generation issues.
+
 ## What Was Removed
 
 ### 1. HuggingFace Backend Segmentation
@@ -139,6 +143,39 @@ Apply camera transform BEFORE drawing:
     - Scale (zoom + dolly)
     - Translate back
     ↓
+Draw frame and elements in transformed space
+```
+
+**Key Fix:** Camera transforms work correctly and interpolate between keyframes
+
+### Video Generation
+
+```
+Render Button → renderStore.startRender()
+    ↓
+Frame Composition (frameCompositor.ts)
+    ↓
+Base64 PNG array
+    ↓
+Upload to Supabase Storage
+    ↓
+Replicate API (frames-to-video)
+    ↓
+Poll for completion
+    ↓
+Download video URL
+    ↓
+Clean up temp frames
+```
+
+**Technology Stack:**
+- **API**: Replicate for video generation
+- **Storage**: Supabase Storage for temporary frames
+- **Format**: PNG frames → MP4/WebM output
+- **FPS**: Configurable (default 24fps)
+
+**Key Fix:** Real video generation with Replicate API, not mock placeholders
+    ↓
 Draw frame and elements
 ```
 
@@ -255,6 +292,9 @@ Draw frame and elements
 - [x] Single render loop
 - [x] Motion blur works
 - [x] Object tracking works
+- [x] Video generation uses Replicate API
+- [x] Temporary frames cleaned up after render
+- [x] All transform properties preserved in playback
 
 ## Command to Verify
 
