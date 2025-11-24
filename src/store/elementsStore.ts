@@ -91,14 +91,16 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
         return;
       }
 
-      // CRITICAL FIX: Use actual bounding box from segmentation, no default positioning
+      // CRITICAL FIX: Use actual bounding box from segmentation
+      // Elements maintain their detected position and size through ALL render pipelines
       const newElements: Element[] = result.objects.map((obj, idx) => ({
         id: `element_${Date.now()}_${idx}`,
         label: obj.label,
         image: obj.image,
-        x: obj.bbox.x, // Use detected position, not center
+        // Use detected bounding box coordinates directly
+        x: obj.bbox.x,
         y: obj.bbox.y,
-        width: obj.bbox.w, // Use detected size
+        width: obj.bbox.w,
         height: obj.bbox.h,
         rotation: 0,
         opacity: 100,
