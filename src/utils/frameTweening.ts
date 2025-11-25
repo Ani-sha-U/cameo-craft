@@ -119,6 +119,7 @@ export const findMatchingElement = (
 
 /**
  * Calculate tweened elements between two frames
+ * INTERPOLATES ALL TRANSFORM PROPERTIES: x, y, width, height, rotation, opacity
  */
 export const tweenFrameElements = (
   currentFrameElements: Element[],
@@ -127,43 +128,37 @@ export const tweenFrameElements = (
   enableMotionBlur: boolean = true
 ): Element[] => {
   const tweenedElements: Element[] = [];
-  const processedNextElementIds = new Set<string>();
+  const processedIds = new Set<string>();
 
-  // Tween existing elements that have matches in next frame
+  // Process elements that exist in current frame
   currentFrameElements.forEach((currentElement) => {
     const matchingElement = findMatchingElement(currentElement, nextFrameElements);
     
     if (matchingElement) {
-      // Mark this next element as processed to avoid duplicates
-      processedNextElementIds.add(matchingElement.id);
+      // Mark as processed to prevent duplicates
+      processedIds.add(matchingElement.id);
+      processedIds.add(currentElement.id);
       
-      // Tween between current and next with motion blur
+      // Tween ALL properties between current and next
       tweenedElements.push(tweenElement(currentElement, matchingElement, t, enableMotionBlur));
-    } else {
-      // Fade out element that doesn't exist in next frame - use easeOut for smoother fade
-      const fadeT = easingFunctions.easeOutCubic(t);
-      tweenedElements.push({
-        ...currentElement,
-        opacity: currentElement.opacity * (1 - fadeT),
-      });
     }
+    // Skip elements without matches - they disappear at the boundary
   });
 
-  // Fade in new elements that only exist in next frame
+  // Process new elements that only exist in next frame
   nextFrameElements.forEach((nextElement) => {
-    // Skip if already processed as a match
-    if (processedNextElementIds.has(nextElement.id)) {
+    // Skip if already processed
+    if (processedIds.has(nextElement.id)) {
       return;
     }
     
+    // Only add if truly new (doesn't exist in current by any match criteria)
     const existsInCurrent = findMatchingElement(nextElement, currentFrameElements);
-    
     if (!existsInCurrent) {
-      // Fade in using easeIn for smoother appearance
-      const fadeT = easingFunctions.easeInCubic(t);
+      // New element appears with linear opacity fade-in
       tweenedElements.push({
         ...nextElement,
-        opacity: nextElement.opacity * fadeT,
+        opacity: nextElement.opacity * t,
       });
     }
   });

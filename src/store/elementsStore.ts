@@ -88,18 +88,19 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
         return;
       }
 
-      // Center elements in a typical 1920x1080 canvas with some offset per element
+      // Position elements with unique IDs to prevent duplicates
       const canvasWidth = 1920;
       const canvasHeight = 1080;
       const elementWidth = 300;
       const elementHeight = 300;
+      const timestamp = Date.now();
       
       const newElements: Element[] = result.elements.map((el, idx) => ({
-        id: `element_${Date.now()}_${idx}`,
+        id: `element_${frameId || 'global'}_${timestamp}_${idx}`,
         label: el.label,
         image: el.image,
-        x: (canvasWidth - elementWidth) / 2 + idx * 30,
-        y: (canvasHeight - elementHeight) / 2 + idx * 30,
+        x: (canvasWidth - elementWidth) / 2 + idx * 40,
+        y: (canvasHeight - elementHeight) / 2 + idx * 40,
         width: elementWidth,
         height: elementHeight,
         rotation: 0,
@@ -109,7 +110,7 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
         glow: 0,
         blendMode: 'normal' as const,
         maskImage: undefined,
-        easing: 'easeInOutCubic',
+        easing: 'linear',
       }));
 
       // Update frame with masked thumbnail if frameId provided
@@ -118,21 +119,22 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
         const frame = framesStore.frames.find((f) => f.id === frameId);
         
         if (frame) {
-          // Update frame with masked thumbnail and add elements
+          // CRITICAL: Replace existing elements to prevent duplicates
           const updatedFrame = {
             ...frame,
             maskedThumbnail: result.maskedFrame,
-            elements: [...frame.elements, ...newElements]
+            elements: newElements // Replace, don't append
           };
           
-          const updatedFrames = framesStore.frames.map((f) => 
-            f.id === frameId ? updatedFrame : f
-          );
+          framesStore.updateFrameElements(frameId, newElements);
           
+          // Also update maskedThumbnail
+          const updatedFrames = framesStore.frames.map((f) => 
+            f.id === frameId ? { ...f, maskedThumbnail: result.maskedFrame } : f
+          );
           framesStore.addFrames(updatedFrames);
         }
         
-        // Only store in frame, not globally - prevents duplication
         set({ isProcessing: false });
       } else {
         // Store globally only if no frame specified
