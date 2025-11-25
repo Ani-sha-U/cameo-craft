@@ -1,3 +1,4 @@
+// extractFramesFromVideo.ts
 import { Frame } from "@/store/framesStore";
 
 interface ExtractFramesOptions {
@@ -32,61 +33,67 @@ export async function extractFramesFromVideo({
     video.addEventListener("loadedmetadata", async () => {
       const duration = video.duration;
 
-      // Auto-detect FPS if not provided (AI videos are usually 24–30 fps)
-      const fps = framesPerSecond || Math.min(30, Math.round(video.webkitDecodedFrameCount / duration) || 30);
-
+      // Try to detect FPS; fallback to 30
+      const fps = framesPerSecond || 30;
       const totalFrames = Math.min(Math.floor(duration * fps), maxFrames);
 
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = video.videoWidth || 1920;
+      canvas.height = video.videoHeight || 1080;
 
       const thumbnailWidth = 300;
-      const thumbnailHeight = (canvas.height / canvas.width) * thumbnailWidth;
+      const thumbnailHeight = Math.round((canvas.height / canvas.width) * thumbnailWidth);
 
       const frames: Frame[] = [];
 
       const waitForFrame = () => new Promise((resolve) => requestAnimationFrame(() => resolve(true)));
 
-      for (let i = 0; i < totalFrames; i++) {
-        const t = i / fps;
+      try {
+        for (let i = 0; i < totalFrames; i++) {
+          const t = Math.min(i / fps, duration - 0.001);
 
-        await new Promise<void>((res) => {
-          const onSeeked = async () => {
-            video.removeEventListener("seeked", onSeeked);
+          await new Promise<void>((res) => {
+            const onSeeked = async () => {
+              video.removeEventListener("seeked", onSeeked);
 
-            // Wait for frame to render
-            await waitForFrame();
+              // Wait for frame to render
+              await waitForFrame();
 
-            // Draw to main canvas
-            ctx.drawImage(video, 0, 0);
+              // Draw to main canvas
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            // Thumbnail canvas
-            const thumbCanvas = document.createElement("canvas");
-            thumbCanvas.width = thumbnailWidth;
-            thumbCanvas.height = thumbnailHeight;
+              // Thumbnail canvas
+              const thumbCanvas = document.createElement("canvas");
+              thumbCanvas.width = thumbnailWidth;
+              thumbCanvas.height = thumbnailHeight;
+              const thumbCtx = thumbCanvas.getContext("2d");
+              if (thumbCtx) {
+                thumbCtx.drawImage(canvas, 0, 0, thumbnailWidth, thumbnailHeight);
+              }
 
-            const thumbCtx = thumbCanvas.getContext("2d");
-            thumbCtx?.drawImage(canvas, 0, 0, thumbnailWidth, thumbnailHeight);
+              const thumbnail = thumbCanvas.toDataURL("image/jpeg", 0.95);
 
-            const thumbnail = thumbCanvas.toDataURL("image/jpeg", 0.95);
+              frames.push({
+                id: `frame_${i}_${Date.now()}`,
+                thumbnail,
+                timestamp: video.currentTime,
+                elements: [],
+                // Important: baseFrame will be set after separation step
+                baseFrame: undefined,
+                canvasState: { zoom: 1, panX: 0, panY: 0 },
+              });
 
-            frames.push({
-              id: `frame_${i}_${Date.now()}`,
-              thumbnail,
-              timestamp: video.currentTime,
-              elements: [],
-              canvasState: { zoom: 1, panX: 0, panY: 0 },
-            });
+              res();
+            };
 
-            res();
-          };
+            video.addEventListener("seeked", onSeeked, { once: true });
+            video.currentTime = t;
+          });
+        }
 
-          video.addEventListener("seeked", onSeeked, { once: true });
-          video.currentTime = Math.min(t, duration - 0.001);
-        });
+        resolve(frames);
+      } catch (err) {
+        reject(err);
       }
-
-      resolve(frames);
     });
 
     video.onerror = () => reject(new Error("Could not load video for frame extraction."));
