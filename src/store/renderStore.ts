@@ -1,36 +1,29 @@
 // src/store/renderStore.ts
 
 import create from "zustand";
-import produce from "immer";
 import { useTimelineStore } from "@/store/timelineStore";
 import { composeFrameToDataURL } from "@/utils/frameCompositor";
 
 type RenderState = {
-  isRendering: boolean;
   playing: boolean;
+  isRendering: boolean;
   currentFrameDataUrl: string | null;
   renderCanvasWidth: number;
   renderCanvasHeight: number;
 
-  // Play / Pause
   play: () => void;
   pause: () => void;
-
-  // Jump to frame
   setFrameIndex: (index: number) => void;
-
-  // Internal loop
-  _tickPlayback: () => void;
-
-  // Force re-render of current frame
   renderCurrentFrame: () => void;
+
+  _tickPlayback: () => void;
 };
 
 let playbackTimer: number | null = null;
 
 export const useRenderStore = create<RenderState>((set, get) => ({
-  isRendering: false,
   playing: false,
+  isRendering: false,
   currentFrameDataUrl: null,
   renderCanvasWidth: 1920,
   renderCanvasHeight: 1080,
@@ -39,22 +32,12 @@ export const useRenderStore = create<RenderState>((set, get) => ({
     const timeline = useTimelineStore.getState();
     if (timeline.frames.length === 0) return;
 
-    set(
-      produce((state: RenderState) => {
-        state.playing = true;
-      }),
-    );
-
+    set({ playing: true });
     get()._tickPlayback();
   },
 
   pause: () => {
-    set(
-      produce((state: RenderState) => {
-        state.playing = false;
-      }),
-    );
-
+    set({ playing: false });
     if (playbackTimer) {
       cancelAnimationFrame(playbackTimer);
       playbackTimer = null;
@@ -64,49 +47,38 @@ export const useRenderStore = create<RenderState>((set, get) => ({
   setFrameIndex: (index: number) => {
     const timeline = useTimelineStore.getState();
     timeline.gotoFrameIndex(index);
-
-    // Immediately render the new frame
     get().renderCurrentFrame();
   },
 
-  /**
-   * Rendering loop – plays frames at correct FPS.
-   * Uses requestAnimationFrame, not setInterval, to avoid flicker.
-   */
   _tickPlayback: () => {
-    const render = get();
+    if (!get().playing) return;
+
     const timeline = useTimelineStore.getState();
-
-    if (!render.playing) return;
-
     const fps = timeline.fps || 30;
-    const frameDuration = 1000 / fps;
+    const msPerFrame = 1000 / fps;
 
-    let lastTimestamp = performance.now();
+    let last = performance.now();
 
     const loop = () => {
       if (!get().playing) return;
 
       const now = performance.now();
-      const delta = now - lastTimestamp;
+      const delta = now - last;
 
-      if (delta >= frameDuration) {
-        lastTimestamp = now - (delta % frameDuration);
+      if (delta >= msPerFrame) {
+        last = now - (delta % msPerFrame);
 
-        const currentIdx = timeline.currentFrameIndex;
-        const totalFrames = timeline.frames.length;
+        const i = timeline.currentFrameIndex;
+        const total = timeline.frames.length;
 
-        // Advance frame
-        if (currentIdx < totalFrames - 1) {
-          timeline.gotoFrameIndex(currentIdx + 1);
+        if (i < total - 1) {
+          timeline.gotoFrameIndex(i + 1);
         } else {
-          // Loop or stop at end — here we stop
-          render.pause();
+          get().pause();
           return;
         }
 
-        // Render new frame
-        render.renderCurrentFrame();
+        get().renderCurrentFrame();
       }
 
       playbackTimer = requestAnimationFrame(loop);
@@ -115,40 +87,24 @@ export const useRenderStore = create<RenderState>((set, get) => ({
     playbackTimer = requestAnimationFrame(loop);
   },
 
-  /**
-   * Force-render the CURRENT frame into a DataURL.
-   * This drives the <img> or <canvas> inside VideoPreview.
-   */
   renderCurrentFrame: async () => {
     const timeline = useTimelineStore.getState();
-    const render = get();
+    const frame = timeline.frames[timeline.currentFrameIndex];
 
-    const index = timeline.currentFrameIndex;
-    const frame = timeline.frames[index];
     if (!frame) return;
 
-    set(
-      produce((state: RenderState) => {
-        state.isRendering = true;
-      }),
-    );
+    set({ isRendering: true });
 
     try {
-      const dataUrl = await composeFrameToDataURL(frame, render.renderCanvasWidth, render.renderCanvasHeight);
+      const dataUrl = await composeFrameToDataURL(frame, get().renderCanvasWidth, get().renderCanvasHeight);
 
-      set(
-        produce((state: RenderState) => {
-          state.currentFrameDataUrl = dataUrl;
-          state.isRendering = false;
-        }),
-      );
+      set({
+        currentFrameDataUrl: dataUrl,
+        isRendering: false,
+      });
     } catch (err) {
-      console.error("Failed to render frame:", err);
-      set(
-        produce((state: RenderState) => {
-          state.isRendering = false;
-        }),
-      );
+      console.error("Render error:", err);
+      set({ isRendering: false });
     }
   },
 }));
