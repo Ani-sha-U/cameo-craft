@@ -127,31 +127,43 @@ export const tweenFrameElements = (
   enableMotionBlur: boolean = true
 ): Element[] => {
   const tweenedElements: Element[] = [];
+  const processedNextElementIds = new Set<string>();
 
   // Tween existing elements that have matches in next frame
   currentFrameElements.forEach((currentElement) => {
     const matchingElement = findMatchingElement(currentElement, nextFrameElements);
     
     if (matchingElement) {
+      // Mark this next element as processed to avoid duplicates
+      processedNextElementIds.add(matchingElement.id);
+      
       // Tween between current and next with motion blur
       tweenedElements.push(tweenElement(currentElement, matchingElement, t, enableMotionBlur));
     } else {
-      // Fade out element that doesn't exist in next frame
+      // Fade out element that doesn't exist in next frame - use easeOut for smoother fade
+      const fadeT = easingFunctions.easeOutCubic(t);
       tweenedElements.push({
         ...currentElement,
-        opacity: currentElement.opacity * (1 - t),
+        opacity: currentElement.opacity * (1 - fadeT),
       });
     }
   });
 
   // Fade in new elements that only exist in next frame
   nextFrameElements.forEach((nextElement) => {
+    // Skip if already processed as a match
+    if (processedNextElementIds.has(nextElement.id)) {
+      return;
+    }
+    
     const existsInCurrent = findMatchingElement(nextElement, currentFrameElements);
     
     if (!existsInCurrent) {
+      // Fade in using easeIn for smoother appearance
+      const fadeT = easingFunctions.easeInCubic(t);
       tweenedElements.push({
         ...nextElement,
-        opacity: nextElement.opacity * t,
+        opacity: nextElement.opacity * fadeT,
       });
     }
   });
