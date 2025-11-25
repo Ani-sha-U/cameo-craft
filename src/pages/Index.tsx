@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { PromptSidebar } from "@/components/PromptSidebar";
-import { VideoPreview } from "@/components/VideoPreview";
+import VideoPreview from "@/components/VideoPreview";
 import { Timeline } from "@/components/Timeline";
 import { CameraToolbar } from "@/components/CameraToolbar";
 import { CameraKeyframeTimeline } from "@/components/CameraKeyframeTimeline";
@@ -16,7 +16,7 @@ import { CanvasEditor } from "@/components/CanvasEditor";
 import { ProjectMenu } from "@/components/ProjectMenu";
 import { WelcomeDialog } from "@/components/WelcomeDialog";
 import { SmartFrameCanvas } from "@/components/SmartFrameCanvas";
-import { TransportControls } from "@/components/TransportControls";
+import TransportControls from "@/components/TransportControls";
 import { EditingToolbar } from "@/components/EditingToolbar";
 import { useFramesStore } from "@/store/framesStore";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -24,23 +24,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Index = () => {
   useKeyboardShortcuts();
-  
+
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isAssetLibraryCollapsed, setIsAssetLibraryCollapsed] = useState(false);
-  const [activeTab, setActiveTab] = useState<'preview' | 'canvas'>('preview');
+  const [activeTab, setActiveTab] = useState<"preview" | "canvas">("preview");
   const { frames } = useFramesStore();
 
   return (
     <div className="flex flex-col h-screen bg-background">
       <WelcomeDialog />
-      
+
       {/* Header */}
       <header className="h-12 bg-card border-b border-border flex items-center justify-between px-4">
         <div className="flex items-center gap-3">
           <div>
-            <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              Painter
-            </h1>
+            <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">Painter</h1>
             <p className="text-[10px] text-muted-foreground">Frame-by-frame video editor</p>
           </div>
           <ProjectMenu />
@@ -50,22 +48,26 @@ const Index = () => {
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        <AssetLibrary 
+        <AssetLibrary
           isCollapsed={isAssetLibraryCollapsed}
           onToggleCollapse={() => setIsAssetLibraryCollapsed(!isAssetLibraryCollapsed)}
         />
-        
+
         <PromptSidebar
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         />
-        
+
         <div className="flex-1 flex flex-col overflow-hidden">
           <EditingToolbar />
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 flex flex-col">
             <TabsList className="mx-2 mt-1 w-fit h-8 text-xs">
-              <TabsTrigger value="preview" className="text-xs py-1">Preview</TabsTrigger>
-              <TabsTrigger value="canvas" className="text-xs py-1">Canvas Editor</TabsTrigger>
+              <TabsTrigger value="preview" className="text-xs py-1">
+                Preview
+              </TabsTrigger>
+              <TabsTrigger value="canvas" className="text-xs py-1">
+                Canvas Editor
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="preview" className="flex-1 min-h-0 overflow-auto relative m-0">

@@ -1,12 +1,14 @@
-import { create } from 'zustand';
-import { Element } from './elementsStore';
+import { create } from "zustand";
+import { Element } from "./elementsStore";
 
 export interface Frame {
   id: string;
-  thumbnail: string; // base64 image data
-  maskedThumbnail?: string; // thumbnail with extracted elements removed (transparent)
-  timestamp: number; // in seconds
-  elements: Element[]; // elements on this frame
+  thumbnail: string;
+  timestamp: number;
+  elements: Element[];
+  baseFrame?: string; // Masked base image (MediaPipe)
+  fullFrame?: string; // Optional HD full frame
+  isTween?: boolean; // Tween marker
   canvasState: {
     zoom: number;
     panX: number;
@@ -24,11 +26,11 @@ interface FramesStore {
   onionSkinEnabled: boolean;
   onionSkinRange: number;
   preloadedFrames: Map<string, HTMLImageElement>; // Store all preloaded frames
-  
+
   addFrames: (frames: Frame[]) => void;
   selectFrame: (id: string) => void;
   updateFrameElements: (frameId: string, elements: Element[]) => void;
-  updateFrameCanvasState: (frameId: string, canvasState: Partial<Frame['canvasState']>) => void;
+  updateFrameCanvasState: (frameId: string, canvasState: Partial<Frame["canvasState"]>) => void;
   duplicateFrame: (frameId: string) => void;
   deleteFrame: (frameId: string) => void;
   clearFrames: () => void;
@@ -66,22 +68,18 @@ export const useFramesStore = create<FramesStore>((set, get) => ({
 
   updateFrameElements: (frameId, elements) => {
     set((state) => ({
-      frames: state.frames.map((frame) =>
-        frame.id === frameId ? { ...frame, elements } : frame
-      ),
+      frames: state.frames.map((frame) => (frame.id === frameId ? { ...frame, elements } : frame)),
     }));
-    
+
     // Add to history
-    const { addToHistory } = require('./editorStore').useEditorStore.getState();
+    const { addToHistory } = require("./editorStore").useEditorStore.getState();
     addToHistory({ frames: get().frames });
   },
 
   updateFrameCanvasState: (frameId, canvasState) => {
     set((state) => ({
       frames: state.frames.map((frame) =>
-        frame.id === frameId
-          ? { ...frame, canvasState: { ...frame.canvasState, ...canvasState } }
-          : frame
+        frame.id === frameId ? { ...frame, canvasState: { ...frame.canvasState, ...canvasState } } : frame,
       ),
     }));
   },
@@ -101,11 +99,7 @@ export const useFramesStore = create<FramesStore>((set, get) => ({
       })),
     };
 
-    const newFrames = [
-      ...state.frames.slice(0, frameIndex + 1),
-      newFrame,
-      ...state.frames.slice(frameIndex + 1),
-    ];
+    const newFrames = [...state.frames.slice(0, frameIndex + 1), newFrame, ...state.frames.slice(frameIndex + 1)];
 
     set({ frames: newFrames, selectedFrameId: newFrame.id });
   },
@@ -113,7 +107,7 @@ export const useFramesStore = create<FramesStore>((set, get) => ({
   deleteFrame: (frameId) => {
     const state = get();
     const newFrames = state.frames.filter((f) => f.id !== frameId);
-    
+
     // If we deleted the selected frame, select another one
     let newSelectedId = state.selectedFrameId;
     if (state.selectedFrameId === frameId) {
@@ -126,7 +120,7 @@ export const useFramesStore = create<FramesStore>((set, get) => ({
         newSelectedId = null;
       }
     }
-    
+
     set({ frames: newFrames, selectedFrameId: newSelectedId });
   },
 
@@ -160,7 +154,7 @@ export const useFramesStore = create<FramesStore>((set, get) => ({
     const endIndex = state.frames.findIndex((f) => f.id === endFrameId);
 
     if (startIndex === -1 || endIndex === -1 || startIndex >= endIndex) {
-      console.error('Invalid frame selection for interpolation');
+      console.error("Invalid frame selection for interpolation");
       return;
     }
 
@@ -168,8 +162,8 @@ export const useFramesStore = create<FramesStore>((set, get) => ({
     const endFrame = state.frames[endIndex];
 
     // Import tweening utilities
-    const { tweenFrameElements } = await import('@/utils/frameTweening');
-    const { composeFrameToDataURL } = await import('@/utils/frameCompositor');
+    const { tweenFrameElements } = await import("@/utils/frameTweening");
+    const { composeFrameToDataURL } = await import("@/utils/frameCompositor");
 
     // Generate interpolated frames
     const interpolatedFrames: Frame[] = [];
@@ -214,12 +208,10 @@ export const useFramesStore = create<FramesStore>((set, get) => ({
         const composedDataURL = await composeFrameToDataURL(frame);
         // Update frame thumbnail
         set((state) => ({
-          frames: state.frames.map((f) =>
-            f.id === frame.id ? { ...f, thumbnail: composedDataURL } : f
-          ),
+          frames: state.frames.map((f) => (f.id === frame.id ? { ...f, thumbnail: composedDataURL } : f)),
         }));
       } catch (error) {
-        console.error('Failed to compose interpolated frame:', error);
+        console.error("Failed to compose interpolated frame:", error);
       }
     }
   },
@@ -227,28 +219,29 @@ export const useFramesStore = create<FramesStore>((set, get) => ({
   preloadAllFrames: async () => {
     const { frames } = get();
     const preloadedMap = new Map<string, HTMLImageElement>();
-    
+
     await Promise.all(
-      frames.map(frame => 
-        new Promise<void>((resolve) => {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          
-          img.onload = () => {
-            preloadedMap.set(frame.id, img);
-            resolve();
-          };
-          
-          img.onerror = () => {
-            console.warn(`Failed to preload frame: ${frame.id}`);
-            resolve(); // Continue even if one fails
-          };
-          
-          img.src = frame.thumbnail;
-        })
-      )
+      frames.map(
+        (frame) =>
+          new Promise<void>((resolve) => {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+
+            img.onload = () => {
+              preloadedMap.set(frame.id, img);
+              resolve();
+            };
+
+            img.onerror = () => {
+              console.warn(`Failed to preload frame: ${frame.id}`);
+              resolve(); // Continue even if one fails
+            };
+
+            img.src = frame.thumbnail;
+          }),
+      ),
     );
-    
+
     set({ preloadedFrames: preloadedMap });
   },
 

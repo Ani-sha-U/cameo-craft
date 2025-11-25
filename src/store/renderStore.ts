@@ -1,8 +1,8 @@
-// src/store/renderStore.ts
-
-import create from "zustand";
+import { create } from "zustand";
 import { useTimelineStore } from "@/store/timelineStore";
 import { composeFrameToDataURL } from "@/utils/frameCompositor";
+
+export type ExportFormat = "mp4" | "gif" | "webm";
 
 type RenderState = {
   playing: boolean;
@@ -31,17 +31,14 @@ export const useRenderStore = create<RenderState>((set, get) => ({
   play: () => {
     const timeline = useTimelineStore.getState();
     if (timeline.frames.length === 0) return;
-
     set({ playing: true });
     get()._tickPlayback();
   },
 
   pause: () => {
     set({ playing: false });
-    if (playbackTimer) {
-      cancelAnimationFrame(playbackTimer);
-      playbackTimer = null;
-    }
+    if (playbackTimer) cancelAnimationFrame(playbackTimer);
+    playbackTimer = null;
   },
 
   setFrameIndex: (index: number) => {
@@ -55,23 +52,18 @@ export const useRenderStore = create<RenderState>((set, get) => ({
 
     const timeline = useTimelineStore.getState();
     const fps = timeline.fps || 30;
-    const msPerFrame = 1000 / fps;
-
+    const frameMS = 1000 / fps;
     let last = performance.now();
 
     const loop = () => {
       if (!get().playing) return;
 
       const now = performance.now();
-      const delta = now - last;
-
-      if (delta >= msPerFrame) {
-        last = now - (delta % msPerFrame);
+      if (now - last >= frameMS) {
+        last = now;
 
         const i = timeline.currentFrameIndex;
-        const total = timeline.frames.length;
-
-        if (i < total - 1) {
+        if (i < timeline.frames.length - 1) {
           timeline.gotoFrameIndex(i + 1);
         } else {
           get().pause();
@@ -96,14 +88,13 @@ export const useRenderStore = create<RenderState>((set, get) => ({
     set({ isRendering: true });
 
     try {
-      const dataUrl = await composeFrameToDataURL(frame, get().renderCanvasWidth, get().renderCanvasHeight);
+      const url = await composeFrameToDataURL(frame, get().renderCanvasWidth, get().renderCanvasHeight);
 
       set({
-        currentFrameDataUrl: dataUrl,
+        currentFrameDataUrl: url,
         isRendering: false,
       });
-    } catch (err) {
-      console.error("Render error:", err);
+    } catch {
       set({ isRendering: false });
     }
   },
