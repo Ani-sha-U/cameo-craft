@@ -1,8 +1,13 @@
-// interpolation.ts
-import { Element } from "@/store/elementsStore";
-import { easingFunctions } from "./easingUtils"; // Optional: reuse easing map if you have one
+// src/utils/frameTweening.ts
 
-type EasingType =
+import { Element } from "@/store/elementsStore";
+import { Frame } from "@/store/framesStore";
+
+// ───────────────────────────────────────────────
+// EASING UTILITIES
+// ───────────────────────────────────────────────
+
+export type EasingType =
   | "linear"
   | "easeIn"
   | "easeOut"
@@ -14,17 +19,7 @@ type EasingType =
   | "easeOutQuart"
   | "easeInOutQuart";
 
-const lerp = (start: number, end: number, t: number): number => start + (end - start) * t;
-
-const lerpAngle = (startAngle: number, endAngle: number, t: number): number => {
-  let diff = endAngle - startAngle;
-  while (diff > 180) diff -= 360;
-  while (diff < -180) diff += 360;
-  return startAngle + diff * t;
-};
-
-// Minimal local easing map (or import if you have it)
-const easingMap: Record<EasingType, (x: number) => number> = {
+const easingFunctions: Record<EasingType, (x: number) => number> = {
   linear: (x) => x,
   easeIn: (x) => x * x,
   easeOut: (x) => 1 - (1 - x) * (1 - x),
@@ -37,141 +32,207 @@ const easingMap: Record<EasingType, (x: number) => number> = {
   easeInOutQuart: (x) => (x < 0.5 ? 8 * x * x * x * x : 1 - Math.pow(-2 * x + 2, 4) / 2),
 };
 
-const applyEasing = (t: number, easingType: EasingType = "easeInOutCubic"): number =>
-  (easingMap[easingType] || easingMap.easeInOutCubic)(t);
+const applyEasing = (t: number, type: EasingType = "easeInOutCubic"): number =>
+  easingFunctions[type](Math.max(0, Math.min(1, t)));
 
-export const tweenElement = (
-  elementA: Element,
-  elementB: Element,
-  t: number,
-  enableMotionBlur: boolean = false,
-): Element => {
-  const easingType = (elementA as any).easing || "easeInOutCubic";
-  const easedT = applyEasing(Math.max(0, Math.min(1, t)), easingType as EasingType);
+const lerp = (start: number, end: number, t: number) => start + (end - start) * t;
 
-  const deltaX = elementB.x - elementA.x;
-  const deltaY = elementB.y - elementA.y;
-  const velocity = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-  const motionBlurAmount = enableMotionBlur && velocity > 50 ? Math.min(velocity / 100, 10) : 0;
+const lerpAngle = (start: number, end: number, t: number): number => {
+  let diff = end - start;
+  while (diff > 180) diff -= 360;
+  while (diff < -180) diff += 360;
+  return start + diff * t;
+};
+
+// ───────────────────────────────────────────────
+// ELEMENT TWEENING (POSITION, SCALE, ROTATION, OPACITY)
+// ───────────────────────────────────────────────
+
+export const tweenElement = (a: Element, b: Element, t: number): Element => {
+  const e = applyEasing(t, a.easing || "easeInOutCubic");
 
   return {
-    ...elementA,
-    x: lerp(elementA.x, elementB.x, easedT),
-    y: lerp(elementA.y, elementB.y, easedT),
-    width: lerp(elementA.width, elementB.width, easedT),
-    height: lerp(elementA.height, elementB.height, easedT),
-    rotation: lerpAngle(elementA.rotation, elementB.rotation, easedT),
-    opacity: lerp(elementA.opacity, elementB.opacity, easedT),
-    blur: lerp(elementA.blur || 0, elementB.blur || 0, easedT) + motionBlurAmount,
-    brightness: lerp(elementA.brightness ?? 100, elementB.brightness ?? 100, easedT),
-    glow: lerp(elementA.glow || 0, elementB.glow || 0, easedT),
-    motionBlur:
-      motionBlurAmount > 0
-        ? {
-            amount: motionBlurAmount,
-            angle: Math.atan2(deltaY, deltaX) * (180 / Math.PI),
-          }
-        : undefined,
+    ...a,
+    x: lerp(a.x, b.x, e),
+    y: lerp(a.y, b.y, e),
+    width: lerp(a.width, b.width, e),
+    height: lerp(a.height, b.height, e),
+    rotation: lerpAngle(a.rotation, b.rotation, e),
+    opacity: lerp(a.opacity, b.opacity, e),
+    blur: lerp(a.blur || 0, b.blur || 0, e),
+    brightness: lerp(a.brightness ?? 100, b.brightness ?? 100, e),
+    glow: lerp(a.glow || 0, b.glow || 0, e),
   };
 };
 
-export const findMatchingElement = (element: Element, list: Element[]): Element | null => {
-  const exact = list.find((e) => e.id === element.id);
-  if (exact) return exact;
-  const similar = list.find((e) => e.label === element.label && e.image === element.image);
-  if (similar) return similar;
+// Find matching element between frames
+export const findMatchingElement = (a: Element, list: Element[]): Element | null => {
+  const match1 = list.find((e) => e.id === a.id);
+  if (match1) return match1;
+
+  const match2 = list.find((e) => e.label === a.label && e.image === a.image);
+  if (match2) return match2;
+
+  const ghostNearZero = (e: Element) => Math.abs(e.x) < 4 && Math.abs(e.y) < 4;
+
+  if (ghostNearZero(a)) {
+    const match3 = list.find((e) => e.label === a.label);
+    if (match3) return match3;
+  }
+
   return null;
 };
 
-/**
- * Ghost-aware tweening between two element lists.
- */
-export const tweenFrameElements = (
-  currentFrameElements: Element[],
-  nextFrameElements: Element[],
-  t: number,
-  enableMotionBlur: boolean = true,
-): Element[] => {
-  const tweened: Element[] = [];
+// Tween between element arrays
+export const tweenFrameElements = (curElements: Element[], nextElements: Element[], t: number): Element[] => {
+  const out: Element[] = [];
   const processed = new Set<string>();
 
-  const isGhost = (el: Element) => {
-    const nearZero = Math.abs(el.x) < 4 && Math.abs(el.y) < 4;
-    const tiny = el.width <= 40 && el.height <= 40;
-    return nearZero || tiny;
-  };
-
-  // Build quick lookup maps
-  const nextById = new Map(nextFrameElements.map((e) => [e.id, e]));
-  const nextByKey = new Map<string, Element[]>();
-  for (const e of nextFrameElements) {
-    const key = `${e.label}::${e.image}`;
-    if (!nextByKey.has(key)) nextByKey.set(key, []);
-    nextByKey.get(key)!.push(e);
-  }
-
-  // First pass: iterate current elements
-  for (const cur of currentFrameElements) {
-    // Exact id match
-    const exact = nextById.get(cur.id);
-    if (exact) {
-      processed.add(exact.id);
-      processed.add(cur.id);
-      tweened.push(tweenElement(cur, exact, t, enableMotionBlur));
-      continue;
+  curElements.forEach((cur) => {
+    const match = findMatchingElement(cur, nextElements);
+    if (match) {
+      processed.add(match.id);
+      out.push(tweenElement(cur, match, t));
+    } else {
+      out.push({
+        ...cur,
+        opacity: lerp(cur.opacity, 0, t),
+      });
     }
+  });
 
-    // If current is ghost, try to find next candidate by key
-    if (isGhost(cur)) {
-      const key = `${cur.label}::${cur.image}`;
-      const candidates = nextByKey.get(key) || [];
-      const choice = candidates.find((c) => !processed.has(c.id));
-      if (choice) {
-        processed.add(choice.id);
-        processed.add(cur.id);
-        tweened.push(tweenElement(cur, choice, t, enableMotionBlur));
-        continue;
-      }
+  nextElements.forEach((n) => {
+    if (!processed.has(n.id)) {
+      out.push({
+        ...n,
+        opacity: lerp(0, n.opacity, t),
+      });
     }
+  });
 
-    // Looser similarity
-    const key = `${cur.label}::${cur.image}`;
-    const sim = (nextByKey.get(key) || []).find((c) => !processed.has(c.id));
-    if (sim) {
-      processed.add(sim.id);
-      processed.add(cur.id);
-      tweened.push(tweenElement(cur, sim, t, enableMotionBlur));
-      continue;
-    }
-
-    // No match: fade out current
-    tweened.push({
-      ...cur,
-      opacity: lerp(cur.opacity, 0, t),
-    });
-  }
-
-  // Second pass: handle next-only elements
-  for (const nextEl of nextFrameElements) {
-    if (processed.has(nextEl.id)) continue;
-
-    // Try to find a leftover ghost in current
-    const ghost = currentFrameElements.find(
-      (e) => isGhost(e) && e.label === nextEl.label && e.image === nextEl.image && !processed.has(e.id),
-    );
-    if (ghost) {
-      processed.add(ghost.id);
-      processed.add(nextEl.id);
-      tweened.push(tweenElement(ghost, nextEl, t, enableMotionBlur));
-      continue;
-    }
-
-    // Treat as new: fade-in
-    tweened.push({
-      ...nextEl,
-      opacity: nextEl.opacity * t,
-    });
-  }
-
-  return tweened;
+  return out;
 };
+
+// ───────────────────────────────────────────────
+// OPTION B — CREATE 15 TWEEN FRAMES TO INSERT
+// ───────────────────────────────────────────────
+
+export const generateTweenFrames = (frameA: Frame, frameB: Frame, count: number = 15): Frame[] => {
+  const tweenFrames: Frame[] = [];
+
+  for (let i = 1; i <= count; i++) {
+    const t = i / (count + 1);
+
+    const tweenedElements = tweenFrameElements(frameA.elements, frameB.elements, t);
+
+    tweenFrames.push({
+      id: `tween_${frameA.id}_${i}_${Date.now()}`,
+      thumbnail: frameA.thumbnail, // won't matter for timeline preview
+      timestamp: frameA.timestamp + t * (frameB.timestamp - frameA.timestamp),
+      elements: tweenedElements,
+      baseFrame: frameA.baseFrame, // masked base frame from MediaPipe
+      canvasState: frameA.canvasState,
+    } as Frame);
+  }
+
+  return tweenFrames;
+};
+
+// ───────────────────────────────────────────────
+// MEDIAPIPE SEGMENTATION + ELEMENT EXTRACTION HELPER
+// ───────────────────────────────────────────────
+
+// MediaPipe imports (installed via npm @mediapipe/tasks-vision)
+import { ImageSegmenter, FilesetResolver } from "@mediapipe/tasks-vision";
+
+/**
+ * Convert a mask + original frame into:
+ * 1. baseFrame (background only)
+ * 2. element cutouts (image/png)
+ */
+export async function runMediaPipeSegmentation(frame: Frame): Promise<{
+  baseFrame: string;
+  elements: { label: string; image: string; x: number; y: number }[];
+}> {
+  // Load MediaPipe
+  const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm");
+
+  const segmenter = await ImageSegmenter.createFromOptions(vision, {
+    baseOptions: {
+      modelAssetPath:
+        "https://storage.googleapis.com/mediapipe-models/image_segmenter/deeplab_v3/float32/1/deeplab_v3.tflite",
+      delegate: "GPU",
+    },
+    outputCategoryMask: true,
+  });
+
+  // Convert thumbnail image to ImageBitmap
+  const image = await createImageBitmap(await (await fetch(frame.thumbnail)).blob());
+
+  // Run segmentation
+  const result = segmenter.segment(image);
+
+  // The category mask (1 = person/subject, 0 = background)
+  const mask = result.categoryMask?.getAsUint8Array();
+
+  const width = image.width;
+  const height = image.height;
+
+  const off = new OffscreenCanvas(width, height);
+  const octx = off.getContext("2d")!;
+
+  // Draw original full image
+  octx.drawImage(image, 0, 0);
+
+  // Get pixel array
+  const imgData = octx.getImageData(0, 0, width, height);
+  const d = imgData.data;
+
+  // baseFrame = background only (subject removed)
+  const basePixels = new Uint8ClampedArray(d);
+  // element cutout
+  const subjectPixels = new Uint8ClampedArray(d);
+
+  for (let i = 0; i < d.length; i += 4) {
+    const m = mask ? mask[i / 4] : 0;
+
+    if (m === 1) {
+      // Background version should hide subject
+      basePixels[i + 3] = 0;
+    } else {
+      // Subject version should hide background
+      subjectPixels[i + 3] = 0;
+    }
+  }
+
+  // Export base
+  const baseCanvas = new OffscreenCanvas(width, height);
+  baseCanvas.getContext("2d")!.putImageData(new ImageData(basePixels, width, height), 0, 0);
+  const baseFrameDataUrl = baseCanvas.convertToBlob({ type: "image/png" }).then(blobToDataURL);
+
+  // Export subject as single cutout element
+  const subjectCanvas = new OffscreenCanvas(width, height);
+  subjectCanvas.getContext("2d")!.putImageData(new ImageData(subjectPixels, width, height), 0, 0);
+  const subjectDataUrl = subjectCanvas.convertToBlob({ type: "image/png" }).then(blobToDataURL);
+
+  return {
+    baseFrame: await baseFrameDataUrl,
+    elements: [
+      {
+        label: "subject",
+        image: await subjectDataUrl,
+        x: width * 0.25,
+        y: height * 0.25,
+      },
+    ],
+  };
+}
+
+async function blobToDataURL(blob: Blob | null): Promise<string> {
+  if (!blob) return "";
+  return await new Promise((resolve) => {
+    const r = new FileReader();
+    r.onloadend = () => resolve(r.result as string);
+    r.readAsDataURL(blob);
+  });
+}

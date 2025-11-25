@@ -1,41 +1,44 @@
-// composer.ts
+// src/utils/frameCompositor.ts
+
 import { Frame } from "@/store/framesStore";
 import { Element } from "@/store/elementsStore";
 
 /**
- * Compose a single frame by drawing the masked base frame + provided elements (interpolated or static)
+ * Draw one frame (baseFrame + elements) onto a canvas and return PNG Blob.
+ * Works for normal frames and tween frames.
  */
-export const composeFrame = async (
-  baseFrame: Frame, // Frame object (must contain baseFrame PNG data URL if separation applied)
-  elements: Element[], // Interpolated elements to draw for this frame
-  width: number = 1920,
-  height: number = 1080,
-): Promise<Blob> => {
+export const composeFrame = async (frame: Frame, width: number = 1920, height: number = 1080): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
+
     const ctx = canvas.getContext("2d");
 
-    if (!ctx) return reject(new Error("Could not get canvas context"));
+    if (!ctx) {
+      reject(new Error("Canvas context unavailable."));
+      return;
+    }
 
     ctx.clearRect(0, 0, width, height);
 
-    // Base frame without subject (preferred), fallback to thumbnail
-    const baseSrc = (baseFrame as any).baseFrame || baseFrame.thumbnail;
+    // Load base frame: masked if available, otherwise fallback to thumbnail
     const baseImg = new Image();
     baseImg.crossOrigin = "anonymous";
-    baseImg.src = baseSrc;
+    baseImg.src = frame.baseFrame || frame.thumbnail;
 
     baseImg.onload = () => {
+      // Draw base image full size
       ctx.drawImage(baseImg, 0, 0, width, height);
 
-      if (!elements || elements.length === 0) {
-        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Blob failed"))), "image/png");
+      const elements = frame.elements || [];
+
+      if (elements.length === 0) {
+        canvas.toBlob((blob) => (blob ? resolve(blob) : reject("Failed to export PNG.")), "image/png");
         return;
       }
 
-      let drawn = 0;
+      let completed = 0;
       const total = elements.length;
 
       elements.forEach((el) => {
@@ -46,63 +49,84 @@ export const composeFrame = async (
         img.onload = () => {
           ctx.save();
 
-          // center-based transform
+          // Move to element center
           ctx.translate(el.x + el.width / 2, el.y + el.height / 2);
           ctx.rotate((el.rotation * Math.PI) / 180);
 
           ctx.globalAlpha = (el.opacity ?? 100) / 100;
 
-          // filters
+          // Apply CSS-style filters
           const filters: string[] = [];
           if (el.blur && el.blur > 0) filters.push(`blur(${el.blur}px)`);
-          if (el.brightness !== undefined && el.brightness !== 100) filters.push(`brightness(${el.brightness}%)`);
-          ctx.filter = filters.length ? filters.join(" ") : "none";
+          if (el.brightness && el.brightness !== 100) filters.push(`brightness(${el.brightness}%)`);
+          if (el.glow && el.glow > 0) filters.push(`drop-shadow(0 0 ${el.glow}px white)`);
 
+          ctx.filter = filters.length > 0 ? filters.join(" ") : "none";
+
+          // Blend mode
           if (el.blendMode) {
             ctx.globalCompositeOperation = el.blendMode as GlobalCompositeOperation;
           }
 
+          // Draw
           ctx.drawImage(img, -el.width / 2, -el.height / 2, el.width, el.height);
 
           ctx.restore();
 
-          drawn++;
-          if (drawn === total) {
-            canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Blob failed"))), "image/png");
+          completed++;
+          if (completed === total) {
+            canvas.toBlob((blob) => (blob ? resolve(blob) : reject("Failed to export PNG.")), "image/png");
           }
         };
 
         img.onerror = () => {
-          console.warn("Failed to load element image:", el.image);
-          drawn++;
-          if (drawn === total) {
-            canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Blob failed"))), "image/png");
+          console.warn("Could not load element image:", el.image);
+          completed++;
+          if (completed === total) {
+            canvas.toBlob((blob) => (blob ? resolve(blob) : reject("Failed to export PNG.")), "image/png");
           }
         };
       });
     };
 
-    baseImg.onerror = () => {
-      reject(new Error("Failed to load base frame image"));
-    };
+    baseImg.onerror = () => reject("Failed to load frame base image.");
   });
 };
 
 /**
- * Helper: compose many frames sequentially (for export)
+ * Convert a frame into a DataURL (often used for previews in UI)
+ */
+export const composeFrameToDataURL = async (
+  frame: Frame,
+  width: number = 1920,
+  height: number = 1080,
+): Promise<string> => {
+  const blob = await composeFrame(frame, width, height);
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+};
+
+/**
+ * Compose many frames sequentially (used for video export)
  */
 export const composeFrames = async (
   frames: Frame[],
-  elementLists: Element[][],
   width: number = 1920,
   height: number = 1080,
   onProgress?: (i: number, total: number) => void,
 ): Promise<Blob[]> => {
   const out: Blob[] = [];
+
   for (let i = 0; i < frames.length; i++) {
-    const blob = await composeFrame(frames[i], elementLists[i] || [], width, height);
+    const blob = await composeFrame(frames[i], width, height);
     out.push(blob);
     onProgress?.(i + 1, frames.length);
   }
+
   return out;
 };

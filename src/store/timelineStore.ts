@@ -1,235 +1,202 @@
-import { create } from 'zustand';
-import { toast } from 'sonner';
+// src/store/timelineStore.ts
+import create from "zustand";
+import produce from "immer";
+import { Frame } from "@/store/framesStore";
+import { Element } from "@/store/elementsStore";
+import { generateTweenFrames } from "@/utils/frameTweening";
 
-export type TransitionType = 'none' | 'crossfade' | 'slide' | 'zoom' | 'fade-to-black';
+/**
+ * Timeline store: manages the sequence of frames, insertion of tween frames,
+ * and helper methods for updating frames after MediaPipe segmentation.
+ *
+ * Important:
+ * - generateTweenFrames(frameA, frameB, count) returns an array of Frames (tween frames)
+ * - Each Frame must optionally contain baseFrame (masked PNG) and elements: Element[]
+ */
 
-export interface Clip {
-  id: string;
-  videoUrl: string;
-  startTime: number; // Position on timeline in milliseconds
-  duration: number; // Clip duration in milliseconds
-  trimStart: number; // Trim from video start in milliseconds
-  trimEnd: number; // Trim from video end in milliseconds
-  color: string;
-  label: string;
-  transition: TransitionType;
-  transitionDuration: number; // in milliseconds
-}
-
-interface TimelineStore {
-  clips: Clip[];
-  selectedClipId: string | null;
-  playheadPosition: number; // in milliseconds
-  totalDuration: number; // in milliseconds
+type TimelineState = {
+  frames: Frame[];
+  currentFrameIndex: number;
   isPlaying: boolean;
-  zoom: number; // pixels per second
-  
-  // Clip management
-  addClip: (videoUrl: string, label: string) => void;
-  removeClip: (id: string) => void;
-  updateClip: (id: string, updates: Partial<Clip>) => void;
-  reorderClip: (id: string, newStartTime: number) => void;
-  splitClip: (id: string, splitTime: number) => void;
-  
-  // Selection
-  selectClip: (id: string | null) => void;
-  
-  // Playhead
-  setPlayheadPosition: (position: number) => void;
+  fps: number;
+
+  // Load frames (e.g., after extraction)
+  loadFrames: (frames: Frame[]) => void;
+
+  // Insert tween frames between frameIndex and frameIndex+1
+  // defaultTweenCount is 15 for your project
+  insertTweenBetween: (frameIndex: number, tweenCount?: number) => void;
+
+  // Set the baseFrame (masked) of a frame after MediaPipe segmentation
+  setBaseFrame: (frameId: string, baseFrameDataUrl: string) => void;
+
+  // Update elements of a frame (after element extraction or manual edits)
+  updateFrameElements: (frameId: string, elements: Element[]) => void;
+
+  // Replace a frame at index
+  replaceFrameAt: (index: number, newFrame: Frame) => void;
+
+  // Remove frame by id
+  removeFrame: (frameId: string) => void;
+
+  // Move a frame fromIndex -> toIndex
+  moveFrame: (fromIndex: number, toIndex: number) => void;
+
+  // Playback controls
   play: () => void;
   pause: () => void;
-  
-  // Zoom
-  setZoom: (zoom: number) => void;
-  
+  gotoFrameIndex: (index: number) => void;
+
   // Helpers
-  getClipAtTime: (time: number) => Clip | null;
-  calculateTotalDuration: () => void;
-}
+  getFrameById: (frameId: string) => Frame | undefined;
+  findFrameIndexById: (frameId: string) => number;
+};
 
-const COLORS = [
-  '#3b82f6', // blue
-  '#8b5cf6', // purple
-  '#ec4899', // pink
-  '#06b6d4', // cyan
-  '#10b981', // green
-  '#f59e0b', // amber
-  '#ef4444', // red
-];
-
-let colorIndex = 0;
-
-export const useTimelineStore = create<TimelineStore>((set, get) => ({
-  clips: [],
-  selectedClipId: null,
-  playheadPosition: 0,
-  totalDuration: 0,
+export const useTimelineStore = create<TimelineState>((set, get) => ({
+  frames: [],
+  currentFrameIndex: 0,
   isPlaying: false,
-  zoom: 100, // 100 pixels per second
-  
-  addClip: (videoUrl: string, label: string) => {
-    const { clips, calculateTotalDuration } = get();
-    
-    // Find the last clip's end time to place new clip after it
-    const lastClip = clips.length > 0 
-      ? clips.reduce((latest, clip) => 
-          (clip.startTime + clip.duration > latest.startTime + latest.duration) ? clip : latest
-        )
-      : null;
-    
-    const startTime = lastClip ? lastClip.startTime + lastClip.duration : 0;
-    
-    const newClip: Clip = {
-      id: `clip-${Date.now()}`,
-      videoUrl,
-      startTime,
-      duration: 5000, // Default 5 seconds
-      trimStart: 0,
-      trimEnd: 0,
-      color: COLORS[colorIndex % COLORS.length],
-      label,
-      transition: 'none',
-      transitionDuration: 500,
-    };
-    
-    colorIndex++;
-    
-    set({ clips: [...clips, newClip] });
-    calculateTotalDuration();
-    toast.success(`Added clip: ${label}`);
-  },
-  
-  removeClip: (id: string) => {
-    const { clips, selectedClipId, calculateTotalDuration } = get();
-    const clip = clips.find(c => c.id === id);
-    
-    set({ 
-      clips: clips.filter(c => c.id !== id),
-      selectedClipId: selectedClipId === id ? null : selectedClipId,
-    });
-    
-    calculateTotalDuration();
-    toast.success(`Removed clip: ${clip?.label || ''}`);
-  },
-  
-  updateClip: (id: string, updates: Partial<Clip>) => {
-    set((state) => ({
-      clips: state.clips.map(clip => 
-        clip.id === id ? { ...clip, ...updates } : clip
-      ),
-    }));
-    get().calculateTotalDuration();
-  },
-  
-  reorderClip: (id: string, newStartTime: number) => {
-    const clampedTime = Math.max(0, newStartTime);
-    set((state) => ({
-      clips: state.clips.map(clip => 
-        clip.id === id ? { ...clip, startTime: clampedTime } : clip
-      ),
-    }));
-    get().calculateTotalDuration();
-  },
-  
-  splitClip: (id: string, splitTime: number) => {
-    const { clips, calculateTotalDuration } = get();
-    const clip = clips.find(c => c.id === id);
-    
-    if (!clip) return;
-    
-    const relativeTime = splitTime - clip.startTime;
-    
-    if (relativeTime <= 0 || relativeTime >= clip.duration) {
-      toast.error("Can't split at this position");
+  fps: 30,
+
+  loadFrames: (frames: Frame[]) =>
+    set(
+      produce((state: TimelineState) => {
+        state.frames = frames.slice();
+        state.currentFrameIndex = 0;
+      }),
+    ),
+
+  insertTweenBetween: (frameIndex: number, tweenCount: number = 15) => {
+    const state = get();
+    const frames = state.frames.slice();
+
+    // Validate indices
+    if (frameIndex < 0 || frameIndex >= frames.length - 1) {
+      console.warn("insertTweenBetween: invalid frameIndex", frameIndex);
       return;
     }
-    
-    const firstPart: Clip = {
-      ...clip,
-      id: `${clip.id}-1`,
-      duration: relativeTime,
-      label: `${clip.label} (1)`,
-    };
-    
-    const secondPart: Clip = {
-      ...clip,
-      id: `${clip.id}-2`,
-      startTime: clip.startTime + relativeTime,
-      duration: clip.duration - relativeTime,
-      trimStart: clip.trimStart + relativeTime,
-      label: `${clip.label} (2)`,
-    };
-    
-    set({
-      clips: clips.map(c => c.id === id ? firstPart : c).concat(secondPart),
-    });
-    
-    calculateTotalDuration();
-    toast.success("Clip split successfully");
-  },
-  
-  selectClip: (id: string | null) => {
-    set({ selectedClipId: id });
-  },
-  
-  setPlayheadPosition: (position: number) => {
-    const clampedPosition = Math.max(0, Math.min(position, get().totalDuration));
-    set({ playheadPosition: clampedPosition });
-  },
-  
-  play: () => {
-    set({ isPlaying: true });
-    
-    const startTime = Date.now();
-    const startPosition = get().playheadPosition;
-    
-    const animate = () => {
-      const { isPlaying, totalDuration } = get();
-      
-      if (!isPlaying) return;
-      
-      const elapsed = Date.now() - startTime;
-      const newPosition = startPosition + elapsed;
-      
-      if (newPosition >= totalDuration) {
-        set({ isPlaying: false, playheadPosition: 0 });
-        return;
-      }
-      
-      set({ playheadPosition: newPosition });
-      requestAnimationFrame(animate);
-    };
-    
-    requestAnimationFrame(animate);
-  },
-  
-  pause: () => {
-    set({ isPlaying: false });
-  },
-  
-  setZoom: (zoom: number) => {
-    set({ zoom: Math.max(20, Math.min(500, zoom)) });
-  },
-  
-  getClipAtTime: (time: number) => {
-    const { clips } = get();
-    return clips.find(clip => 
-      time >= clip.startTime && time < clip.startTime + clip.duration
-    ) || null;
-  },
-  
-  calculateTotalDuration: () => {
-    const { clips } = get();
-    
-    if (clips.length === 0) {
-      set({ totalDuration: 10000 }); // Default 10 seconds
-      return;
-    }
-    
-    const maxEnd = Math.max(
-      ...clips.map(clip => clip.startTime + clip.duration)
+
+    const frameA = frames[frameIndex];
+    const frameB = frames[frameIndex + 1];
+
+    // generate tween frames
+    const tweenFrames = generateTweenFrames(frameA, frameB, tweenCount);
+
+    // Insert after frameIndex
+    const newFrames = [...frames.slice(0, frameIndex + 1), ...tweenFrames, ...frames.slice(frameIndex + 1)];
+
+    set(
+      produce((s: TimelineState) => {
+        s.frames = newFrames;
+        // If playhead was after insertion point, shift it forward by tweenFrames length
+        if (s.currentFrameIndex > frameIndex) {
+          s.currentFrameIndex = s.currentFrameIndex + tweenFrames.length;
+        }
+      }),
     );
-    
-    set({ totalDuration: Math.max(maxEnd, 10000) });
+  },
+
+  setBaseFrame: (frameId: string, baseFrameDataUrl: string) => {
+    set(
+      produce((state: TimelineState) => {
+        const idx = state.frames.findIndex((f) => f.id === frameId);
+        if (idx === -1) {
+          console.warn("setBaseFrame: frame not found", frameId);
+          return;
+        }
+        state.frames[idx] = {
+          ...state.frames[idx],
+          baseFrame: baseFrameDataUrl,
+        } as Frame;
+      }),
+    );
+  },
+
+  updateFrameElements: (frameId: string, elements: Element[]) => {
+    set(
+      produce((state: TimelineState) => {
+        const idx = state.frames.findIndex((f) => f.id === frameId);
+        if (idx === -1) {
+          console.warn("updateFrameElements: frame not found", frameId);
+          return;
+        }
+        state.frames[idx] = {
+          ...state.frames[idx],
+          elements: elements.slice(),
+        } as Frame;
+      }),
+    );
+  },
+
+  replaceFrameAt: (index: number, newFrame: Frame) => {
+    set(
+      produce((state: TimelineState) => {
+        if (index < 0 || index >= state.frames.length) {
+          console.warn("replaceFrameAt: invalid index", index);
+          return;
+        }
+        state.frames[index] = newFrame;
+      }),
+    );
+  },
+
+  removeFrame: (frameId: string) => {
+    set(
+      produce((state: TimelineState) => {
+        const idx = state.frames.findIndex((f) => f.id === frameId);
+        if (idx === -1) return;
+        state.frames.splice(idx, 1);
+        if (state.currentFrameIndex >= state.frames.length) {
+          state.currentFrameIndex = Math.max(0, state.frames.length - 1);
+        }
+      }),
+    );
+  },
+
+  moveFrame: (fromIndex: number, toIndex: number) => {
+    set(
+      produce((state: TimelineState) => {
+        if (fromIndex < 0 || fromIndex >= state.frames.length || toIndex < 0 || toIndex > state.frames.length - 1) {
+          console.warn("moveFrame: invalid indices", fromIndex, toIndex);
+          return;
+        }
+        const [frame] = state.frames.splice(fromIndex, 1);
+        state.frames.splice(toIndex, 0, frame);
+      }),
+    );
+  },
+
+  play: () =>
+    set(
+      produce((state: TimelineState) => {
+        state.isPlaying = true;
+      }),
+    ),
+
+  pause: () =>
+    set(
+      produce((state: TimelineState) => {
+        state.isPlaying = false;
+      }),
+    ),
+
+  gotoFrameIndex: (index: number) =>
+    set(
+      produce((state: TimelineState) => {
+        if (index < 0) index = 0;
+        if (index >= state.frames.length) index = state.frames.length - 1;
+        state.currentFrameIndex = index;
+        state.isPlaying = false;
+      }),
+    ),
+
+  getFrameById: (frameId: string) => {
+    const state = get();
+    return state.frames.find((f) => f.id === frameId);
+  },
+
+  findFrameIndexById: (frameId: string) => {
+    const state = get();
+    return state.frames.findIndex((f) => f.id === frameId);
   },
 }));
