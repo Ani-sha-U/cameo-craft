@@ -131,13 +131,16 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
           
           framesStore.addFrames(updatedFrames);
         }
+        
+        // Only store in frame, not globally - prevents duplication
+        set({ isProcessing: false });
+      } else {
+        // Store globally only if no frame specified
+        set({ 
+          elements: newElements, 
+          isProcessing: false 
+        });
       }
-
-      // Store elements globally as well for the Elements Panel
-      set({ 
-        elements: newElements, 
-        isProcessing: false 
-      });
       
       toast.success(`Extracted ${newElements.length} elements locally!`);
     } catch (error) {
