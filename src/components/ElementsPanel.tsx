@@ -196,7 +196,9 @@ export const ElementsPanel = () => {
                 {currentFrame.elements.map((element) => (
                   <div
                     key={element.id}
-                    className={`p-2 mb-2 rounded-lg border cursor-pointer transition-all ${
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, element)}
+                    className={`p-2 mb-2 rounded-lg border cursor-grab active:cursor-grabbing transition-all ${
                       selectedElementId === element.id
                         ? 'border-primary bg-primary/10'
                         : 'border-border hover:border-primary/50'
@@ -209,7 +211,25 @@ export const ElementsPanel = () => {
                         alt={element.label}
                         className="w-8 h-8 object-cover rounded bg-muted"
                       />
-                      <p className="text-xs truncate flex-1">{element.label}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs truncate">{element.label}</p>
+                        <p className="text-[10px] text-muted-foreground">Drag to other frames</p>
+                      </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (currentFrame) {
+                            const updated = currentFrame.elements.filter(el => el.id !== element.id);
+                            updateFrameElements(currentFrame.id, updated);
+                            toast.success("Element removed from frame");
+                          }
+                        }}
+                        className="h-6 w-6"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
                     </div>
                   </div>
                 ))}
