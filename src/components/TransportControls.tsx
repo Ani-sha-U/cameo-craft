@@ -1,111 +1,173 @@
-// src/components/TransportControls.tsx
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+import { 
+  Play, 
+  Pause, 
+  SkipBack, 
+  SkipForward, 
+  StepBack, 
+  StepForward,
+  Repeat,
+  Gauge
+} from "lucide-react";
+import { useEditorStore, PlaybackSpeed } from "@/store/editorStore";
+import { useFramesStore } from "@/store/framesStore";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
-import React from "react";
-import { useRenderStore } from "@/store/renderStore";
-import { useTimelineStore } from "@/store/timelineStore";
+export const TransportControls = () => {
+  const { 
+    isPlaying, 
+    playbackSpeed, 
+    loop,
+    togglePlayPause,
+    setPlaybackSpeed,
+    toggleLoop,
+    goToStart,
+    goToEnd,
+    nextFrame,
+    prevFrame,
+  } = useEditorStore();
+  
+  const { frames, selectedFrameId, selectFrame } = useFramesStore();
+  
+  const currentIndex = frames.findIndex(f => f.id === selectedFrameId);
+  const progress = frames.length > 0 ? ((currentIndex + 1) / frames.length) * 100 : 0;
 
-const TransportControls: React.FC = () => {
-  const { play, pause, playing } = useRenderStore();
-
-  const { frames, currentFrameIndex, gotoFrameIndex, fps } = useTimelineStore();
-
-  const handlePrev = () => {
-    if (currentFrameIndex > 0) {
-      gotoFrameIndex(currentFrameIndex - 1);
-    }
-  };
-
-  const handleNext = () => {
-    if (currentFrameIndex < frames.length - 1) {
-      gotoFrameIndex(currentFrameIndex + 1);
-    }
-  };
-
-  const handleFirst = () => {
-    if (frames.length > 0) {
-      gotoFrameIndex(0);
-    }
-  };
-
-  const handleLast = () => {
-    if (frames.length > 0) {
-      gotoFrameIndex(frames.length - 1);
+  const handleScrub = (value: number[]) => {
+    const index = Math.floor((value[0] / 100) * frames.length);
+    if (frames[index]) {
+      selectFrame(frames[index].id);
     }
   };
 
   return (
-    <div
-      style={{
-        width: "100%",
-        padding: "8px 10px",
-        background: "#111",
-        color: "#fff",
-        display: "flex",
-        alignItems: "center",
-        gap: "12px",
-        borderTop: "1px solid #333",
-      }}
-    >
-      {/* Jump to first frame */}
-      <button onClick={handleFirst} style={buttonStyle} disabled={frames.length === 0}>
-        ⏮
-      </button>
+    <div className="flex flex-col gap-2 p-2 bg-card/50 border-t border-border">
+      {/* Progress Bar */}
+      <div className="px-2">
+        <Slider
+          value={[progress]}
+          min={0}
+          max={100}
+          step={0.1}
+          onValueChange={handleScrub}
+          className="cursor-pointer"
+        />
+      </div>
 
-      {/* Previous frame */}
-      <button onClick={handlePrev} style={buttonStyle} disabled={currentFrameIndex === 0}>
-        ⏪
-      </button>
+      {/* Controls */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1">
+          {/* Go to Start */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={goToStart}
+            title="Go to Start (Home)"
+          >
+            <SkipBack className="h-3 w-3" />
+          </Button>
+          
+          {/* Previous Frame */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={prevFrame}
+            disabled={currentIndex === 0}
+            title="Previous Frame (←)"
+          >
+            <StepBack className="h-3 w-3" />
+          </Button>
+          
+          {/* Play/Pause */}
+          <Button
+            variant={isPlaying ? "destructive" : "default"}
+            size="icon"
+            className="h-8 w-8"
+            onClick={togglePlayPause}
+            disabled={frames.length === 0}
+            title="Play/Pause (Space/K)"
+          >
+            {isPlaying ? (
+              <Pause className="h-4 w-4" />
+            ) : (
+              <Play className="h-4 w-4" />
+            )}
+          </Button>
+          
+          {/* Next Frame */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={nextFrame}
+            disabled={currentIndex === frames.length - 1}
+            title="Next Frame (→)"
+          >
+            <StepForward className="h-3 w-3" />
+          </Button>
+          
+          {/* Go to End */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={goToEnd}
+            title="Go to End (End)"
+          >
+            <SkipForward className="h-3 w-3" />
+          </Button>
 
-      {/* Play / Pause */}
-      {playing ? (
-        <button onClick={pause} style={mainButtonStyle}>
-          ⏸ Pause
-        </button>
-      ) : (
-        <button onClick={play} style={mainButtonStyle} disabled={frames.length <= 1}>
-          ▶ Play
-        </button>
-      )}
+          {/* Loop Toggle */}
+          <Button
+            variant={loop ? "default" : "ghost"}
+            size="icon"
+            className="h-7 w-7"
+            onClick={toggleLoop}
+            title="Loop Playback"
+          >
+            <Repeat className={cn("h-3 w-3", loop && "text-primary-foreground")} />
+          </Button>
+        </div>
 
-      {/* Next frame */}
-      <button onClick={handleNext} style={buttonStyle} disabled={currentFrameIndex >= frames.length - 1}>
-        ⏩
-      </button>
+        {/* Frame Counter */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {currentIndex + 1} / {frames.length}
+          </span>
+          
+          {/* Playback Speed */}
+          <Select
+            value={playbackSpeed.toString()}
+            onValueChange={(value) => setPlaybackSpeed(parseFloat(value) as PlaybackSpeed)}
+          >
+            <SelectTrigger className="h-7 w-16 text-xs">
+              <Gauge className="h-3 w-3 mr-1" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0.25">0.25x</SelectItem>
+              <SelectItem value="0.5">0.5x</SelectItem>
+              <SelectItem value="1">1x</SelectItem>
+              <SelectItem value="1.5">1.5x</SelectItem>
+              <SelectItem value="2">2x</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-      {/* Jump to last frame */}
-      <button onClick={handleLast} style={buttonStyle} disabled={frames.length === 0}>
-        ⏭
-      </button>
-
-      <div style={{ marginLeft: "auto", opacity: 0.8, fontSize: "14px" }}>
-        Frame {currentFrameIndex + 1} / {frames.length}
-        &nbsp; | &nbsp; {fps} FPS
+      {/* Keyboard Shortcuts Hint */}
+      <div className="text-[10px] text-muted-foreground text-center">
+        Space: Play/Pause • ←/→: Frame • Shift+←/→: Seek • I/O: In/Out • Ctrl+D: Duplicate
       </div>
     </div>
   );
-};
-
-export default TransportControls;
-
-// ---------------------
-// STYLES
-// ---------------------
-
-const buttonStyle: React.CSSProperties = {
-  background: "#222",
-  border: "1px solid #444",
-  padding: "6px 10px",
-  borderRadius: "4px",
-  cursor: "pointer",
-  color: "#fff",
-};
-
-const mainButtonStyle: React.CSSProperties = {
-  background: "#0a84ff",
-  border: "1px solid #0a60cc",
-  padding: "6px 14px",
-  borderRadius: "4px",
-  cursor: "pointer",
-  color: "#fff",
-  fontWeight: 600,
 };

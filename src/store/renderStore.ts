@@ -1,101 +1,187 @@
-import { create } from "zustand";
-import { useTimelineStore } from "@/store/timelineStore";
-import { composeFrameToDataURL } from "@/utils/frameCompositor";
+import { create } from 'zustand';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
-export type ExportFormat = "mp4" | "gif" | "webm";
+export type ExportFormat = 'mp4-720p' | 'mp4-1080p' | 'webm' | 'gif';
+export type RenderStatus = 'idle' | 'preparing' | 'rendering' | 'uploading' | 'completed' | 'error';
 
-type RenderState = {
-  playing: boolean;
+interface RenderStore {
   isRendering: boolean;
-  currentFrameDataUrl: string | null;
-  renderCanvasWidth: number;
-  renderCanvasHeight: number;
+  renderStatus: RenderStatus;
+  progress: number;
+  currentStep: string;
+  outputUrl: string | null;
+  error: string | null;
+  
+  startRender: (format: ExportFormat) => Promise<void>;
+  reset: () => void;
+}
 
-  play: () => void;
-  pause: () => void;
-  setFrameIndex: (index: number) => void;
-  renderCurrentFrame: () => void;
-
-  _tickPlayback: () => void;
-};
-
-let playbackTimer: number | null = null;
-
-export const useRenderStore = create<RenderState>((set, get) => ({
-  playing: false,
+export const useRenderStore = create<RenderStore>((set, get) => ({
   isRendering: false,
-  currentFrameDataUrl: null,
-  renderCanvasWidth: 1920,
-  renderCanvasHeight: 1080,
-
-  play: () => {
-    const timeline = useTimelineStore.getState();
-    if (timeline.frames.length === 0) return;
-    set({ playing: true });
-    get()._tickPlayback();
-  },
-
-  pause: () => {
-    set({ playing: false });
-    if (playbackTimer) cancelAnimationFrame(playbackTimer);
-    playbackTimer = null;
-  },
-
-  setFrameIndex: (index: number) => {
-    const timeline = useTimelineStore.getState();
-    timeline.gotoFrameIndex(index);
-    get().renderCurrentFrame();
-  },
-
-  _tickPlayback: () => {
-    if (!get().playing) return;
-
-    const timeline = useTimelineStore.getState();
-    const fps = timeline.fps || 30;
-    const frameMS = 1000 / fps;
-    let last = performance.now();
-
-    const loop = () => {
-      if (!get().playing) return;
-
-      const now = performance.now();
-      if (now - last >= frameMS) {
-        last = now;
-
-        const i = timeline.currentFrameIndex;
-        if (i < timeline.frames.length - 1) {
-          timeline.gotoFrameIndex(i + 1);
-        } else {
-          get().pause();
-          return;
-        }
-
-        get().renderCurrentFrame();
-      }
-
-      playbackTimer = requestAnimationFrame(loop);
-    };
-
-    playbackTimer = requestAnimationFrame(loop);
-  },
-
-  renderCurrentFrame: async () => {
-    const timeline = useTimelineStore.getState();
-    const frame = timeline.frames[timeline.currentFrameIndex];
-
-    if (!frame) return;
-
-    set({ isRendering: true });
-
+  renderStatus: 'idle',
+  progress: 0,
+  currentStep: '',
+  outputUrl: null,
+  error: null,
+  
+  startRender: async (format: ExportFormat) => {
+    const { useTimelineStore } = await import('./timelineStore');
+    const { useCameraStore } = await import('./cameraStore');
+    const { useElementsStore } = await import('./elementsStore');
+    const { useFramesStore } = await import('./framesStore');
+    const { composeFrames } = await import('@/utils/frameCompositor');
+    
+    const timelineState = useTimelineStore.getState();
+    const cameraState = useCameraStore.getState();
+    const elementsState = useElementsStore.getState();
+    const framesState = useFramesStore.getState();
+    
+    if (timelineState.clips.length === 0 && framesState.frames.length === 0) {
+      toast.error("No clips or frames to render");
+      return;
+    }
+    
+    set({ 
+      isRendering: true, 
+      renderStatus: 'preparing',
+      progress: 0,
+      currentStep: 'Preparing render data...',
+      outputUrl: null,
+      error: null,
+    });
+    
     try {
-      const url = await composeFrameToDataURL(frame, get().renderCanvasWidth, get().renderCanvasHeight);
+      // Compose all frames to bitmaps for final export
+      set({ 
+        currentStep: 'Composing frames with all edits...',
+        progress: 5,
+      });
 
+      const composedFrameBlobs = await composeFrames(
+        framesState.frames,
+        1920,
+        1080,
+        (current, total) => {
+          set({ 
+            progress: 5 + (current / total) * 30,
+            currentStep: `Composing frame ${current} of ${total}...`,
+          });
+        }
+      );
+
+      // Convert blobs to base64 for transmission
+      const composedFramesData = await Promise.all(
+        composedFrameBlobs.map((blob) => {
+          return new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+        })
+      );
+
+      // Prepare render data with composed frames
+      const renderData = {
+        format,
+        clips: timelineState.clips,
+        cameraKeyframes: cameraState.keyframes,
+        elements: elementsState.elements,
+        frames: framesState.frames,
+        composedFrames: composedFramesData, // Send composed bitmaps
+        fps: framesState.fps,
+        totalDuration: timelineState.totalDuration,
+      };
+      
+      console.log('Starting render with composed frames:', {
+        frameCount: composedFramesData.length,
+        format,
+        fps: framesState.fps,
+      });
+      
+      set({ 
+        renderStatus: 'rendering',
+        progress: 40,
+        currentStep: 'Sending to render service...',
+      });
+      
+      // Call render edge function
+      const { data, error } = await supabase.functions.invoke('render-video', {
+        body: renderData
+      });
+      
+      if (error || !data?.success) {
+        const message = data?.error || error?.message || 'Render failed';
+        throw new Error(message);
+      }
+      
+      const renderJobId = data.jobId;
+      
+      // Poll for render status
+      const pollInterval = setInterval(async () => {
+        try {
+          const { data: statusData, error: statusError } = await supabase.functions.invoke('render-video', {
+            body: { jobId: renderJobId }
+          });
+          
+          if (statusError) {
+            clearInterval(pollInterval);
+            throw new Error(statusError.message);
+          }
+          
+          console.log('Render status:', statusData);
+          
+          set({
+            progress: statusData.progress || 50,
+            currentStep: statusData.step || 'Rendering...',
+          });
+          
+          if (statusData.status === 'completed') {
+            clearInterval(pollInterval);
+            set({
+              renderStatus: 'completed',
+              progress: 100,
+              currentStep: 'Render complete!',
+              outputUrl: statusData.url,
+              isRendering: false,
+            });
+            toast.success("Video rendered successfully!");
+          } else if (statusData.status === 'error') {
+            clearInterval(pollInterval);
+            throw new Error(statusData.error || 'Render failed');
+          }
+        } catch (error) {
+          clearInterval(pollInterval);
+          const message = error instanceof Error ? error.message : 'Failed to check render status';
+          set({
+            renderStatus: 'error',
+            error: message,
+            isRendering: false,
+          });
+          toast.error("Render failed", { description: message });
+        }
+      }, 2000);
+      
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Render failed';
       set({
-        currentFrameDataUrl: url,
+        renderStatus: 'error',
+        error: message,
         isRendering: false,
       });
-    } catch {
-      set({ isRendering: false });
+      toast.error("Render failed", { description: message });
+      console.error('Render error:', error);
     }
+  },
+  
+  reset: () => {
+    set({
+      isRendering: false,
+      renderStatus: 'idle',
+      progress: 0,
+      currentStep: '',
+      outputUrl: null,
+      error: null,
+    });
   },
 }));

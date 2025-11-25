@@ -1,11 +1,4 @@
-// src/utils/frameTweening.ts
-
 import { Element } from "@/store/elementsStore";
-import { Frame } from "@/store/framesStore";
-
-// ───────────────────────────────────────────────
-// EASING UTILITIES
-// ───────────────────────────────────────────────
 
 export type EasingType =
   | "linear"
@@ -19,220 +12,234 @@ export type EasingType =
   | "easeOutQuart"
   | "easeInOutQuart";
 
-const easingFunctions: Record<EasingType, (x: number) => number> = {
-  linear: (x) => x,
-  easeIn: (x) => x * x,
-  easeOut: (x) => 1 - (1 - x) * (1 - x),
-  easeInOut: (x) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2),
-  easeInCubic: (x) => x * x * x,
-  easeOutCubic: (x) => 1 - Math.pow(1 - x, 3),
-  easeInOutCubic: (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2),
-  easeInQuart: (x) => x * x * x * x,
-  easeOutQuart: (x) => 1 - Math.pow(1 - x, 4),
-  easeInOutQuart: (x) => (x < 0.5 ? 8 * x * x * x * x : 1 - Math.pow(-2 * x + 2, 4) / 2),
+/**
+ * Linear interpolation between two values
+ */
+const lerp = (start: number, end: number, t: number): number => {
+  return start + (end - start) * t;
 };
 
-const applyEasing = (t: number, type: EasingType = "easeInOutCubic"): number =>
-  easingFunctions[type](Math.max(0, Math.min(1, t)));
+/**
+ * Interpolate rotation angle, taking shortest path
+ */
+const lerpAngle = (startAngle: number, endAngle: number, t: number): number => {
+  let diff = endAngle - startAngle;
 
-const lerp = (start: number, end: number, t: number) => start + (end - start) * t;
-
-const lerpAngle = (start: number, end: number, t: number): number => {
-  let diff = end - start;
+  // Normalize to shortest path
   while (diff > 180) diff -= 360;
   while (diff < -180) diff += 360;
-  return start + diff * t;
+
+  return startAngle + diff * t;
 };
 
-// ───────────────────────────────────────────────
-// ELEMENT TWEENING (POSITION, SCALE, ROTATION, OPACITY)
-// ───────────────────────────────────────────────
+/**
+ * Easing functions for animation curves
+ */
+export const easingFunctions: Record<EasingType, (x: number) => number> = {
+  linear: (x: number) => x,
 
-export const tweenElement = (a: Element, b: Element, t: number): Element => {
-  const e = applyEasing(t, a.easing || "easeInOutCubic");
+  easeIn: (x: number) => x * x,
+  easeOut: (x: number) => 1 - (1 - x) * (1 - x),
+  easeInOut: (x: number) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2),
+
+  easeInCubic: (x: number) => x * x * x,
+  easeOutCubic: (x: number) => 1 - Math.pow(1 - x, 3),
+  easeInOutCubic: (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2),
+
+  easeInQuart: (x: number) => x * x * x * x,
+  easeOutQuart: (x: number) => 1 - Math.pow(1 - x, 4),
+  easeInOutQuart: (x: number) => (x < 0.5 ? 8 * x * x * x * x : 1 - Math.pow(-2 * x + 2, 4) / 2),
+};
+
+/**
+ * Apply easing function to interpolation value
+ */
+const applyEasing = (t: number, easingType: EasingType = "easeInOutCubic"): number => {
+  return easingFunctions[easingType](t);
+};
+
+/**
+ * Interpolate between two element states for smooth animation
+ * Interpolates all transform properties: x, y, width, height, rotation, opacity, blur, brightness, glow
+ */
+export const tweenElement = (
+  elementA: Element,
+  elementB: Element,
+  t: number, // 0 to 1, where 0 is elementA and 1 is elementB
+  enableMotionBlur: boolean = false,
+): Element => {
+  // Use element's easing type or default to easeInOutCubic
+  const easingType = elementA.easing || "easeInOutCubic";
+  const easedT = applyEasing(t, easingType);
+
+  // Calculate velocity for motion blur
+  const deltaX = elementB.x - elementA.x;
+  const deltaY = elementB.y - elementA.y;
+  const velocity = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+  // Apply motion blur if enabled and velocity is significant
+  const motionBlurAmount = enableMotionBlur && velocity > 50 ? Math.min(velocity / 100, 10) : 0;
 
   return {
-    ...a,
-    x: lerp(a.x, b.x, e),
-    y: lerp(a.y, b.y, e),
-    width: lerp(a.width, b.width, e),
-    height: lerp(a.height, b.height, e),
-    rotation: lerpAngle(a.rotation, b.rotation, e),
-    opacity: lerp(a.opacity, b.opacity, e),
-    blur: lerp(a.blur || 0, b.blur || 0, e),
-    brightness: lerp(a.brightness ?? 100, b.brightness ?? 100, e),
-    glow: lerp(a.glow || 0, b.glow || 0, e),
+    ...elementA,
+    // Position interpolation
+    x: lerp(elementA.x, elementB.x, easedT),
+    y: lerp(elementA.y, elementB.y, easedT),
+
+    // Scale interpolation (width/height serve as scaleX/scaleY)
+    width: lerp(elementA.width, elementB.width, easedT),
+    height: lerp(elementA.height, elementB.height, easedT),
+
+    // Rotation with angle wrapping for shortest path
+    rotation: lerpAngle(elementA.rotation, elementB.rotation, easedT),
+
+    // Visual property interpolation
+    opacity: lerp(elementA.opacity, elementB.opacity, easedT),
+    blur: lerp(elementA.blur, elementB.blur, easedT) + motionBlurAmount,
+    brightness: lerp(elementA.brightness, elementB.brightness, easedT),
+    glow: lerp(elementA.glow, elementB.glow, easedT),
+
+    // Store motion blur data for rendering
+    motionBlur:
+      motionBlurAmount > 0
+        ? {
+            amount: motionBlurAmount,
+            angle: Math.atan2(deltaY, deltaX) * (180 / Math.PI),
+          }
+        : undefined,
   };
 };
 
-// Find matching element between frames
-export const findMatchingElement = (a: Element, list: Element[]): Element | null => {
-  const match1 = list.find((e) => e.id === a.id);
-  if (match1) return match1;
+/**
+ * Find matching element in next frame by ID or similarity
+ */
+export const findMatchingElement = (element: Element, nextFrameElements: Element[]): Element | null => {
+  // Try exact ID match first (for copied elements)
+  const exactMatch = nextFrameElements.find((e) => e.id === element.id);
+  if (exactMatch) return exactMatch;
 
-  const match2 = list.find((e) => e.label === a.label && e.image === a.image);
-  if (match2) return match2;
-
-  const ghostNearZero = (e: Element) => Math.abs(e.x) < 4 && Math.abs(e.y) < 4;
-
-  if (ghostNearZero(a)) {
-    const match3 = list.find((e) => e.label === a.label);
-    if (match3) return match3;
-  }
+  // Try matching by label and image (for similar elements)
+  const similarMatch = nextFrameElements.find((e) => e.label === element.label && e.image === element.image);
+  if (similarMatch) return similarMatch;
 
   return null;
 };
 
-// Tween between element arrays
-export const tweenFrameElements = (curElements: Element[], nextElements: Element[], t: number): Element[] => {
-  const out: Element[] = [];
-  const processed = new Set<string>();
-
-  curElements.forEach((cur) => {
-    const match = findMatchingElement(cur, nextElements);
-    if (match) {
-      processed.add(match.id);
-      out.push(tweenElement(cur, match, t));
-    } else {
-      out.push({
-        ...cur,
-        opacity: lerp(cur.opacity, 0, t),
-      });
-    }
-  });
-
-  nextElements.forEach((n) => {
-    if (!processed.has(n.id)) {
-      out.push({
-        ...n,
-        opacity: lerp(0, n.opacity, t),
-      });
-    }
-  });
-
-  return out;
-};
-
-// ───────────────────────────────────────────────
-// OPTION B — CREATE 15 TWEEN FRAMES TO INSERT
-// ───────────────────────────────────────────────
-
-export const generateTweenFrames = (frameA: Frame, frameB: Frame, count: number = 15): Frame[] => {
-  const tweenFrames: Frame[] = [];
-
-  for (let i = 1; i <= count; i++) {
-    const t = i / (count + 1);
-
-    const tweenedElements = tweenFrameElements(frameA.elements, frameB.elements, t);
-
-    tweenFrames.push({
-      id: `tween_${frameA.id}_${i}_${Date.now()}`,
-      thumbnail: frameA.thumbnail, // won't matter for timeline preview
-      timestamp: frameA.timestamp + t * (frameB.timestamp - frameA.timestamp),
-      elements: tweenedElements,
-      baseFrame: frameA.baseFrame, // masked base frame from MediaPipe
-      canvasState: frameA.canvasState,
-    } as Frame);
-  }
-
-  return tweenFrames;
-};
-
-// ───────────────────────────────────────────────
-// MEDIAPIPE SEGMENTATION + ELEMENT EXTRACTION HELPER
-// ───────────────────────────────────────────────
-
-// MediaPipe imports (installed via npm @mediapipe/tasks-vision)
-import { ImageSegmenter, FilesetResolver } from "@mediapipe/tasks-vision";
-
 /**
- * Convert a mask + original frame into:
- * 1. baseFrame (background only)
- * 2. element cutouts (image/png)
+ * Calculate tweened elements between two frames
+ * INTERPOLATES ALL TRANSFORM PROPERTIES: x, y, width, height, rotation, opacity
  */
-export async function runMediaPipeSegmentation(frame: Frame): Promise<{
-  baseFrame: string;
-  elements: { label: string; image: string; x: number; y: number }[];
-}> {
-  // Load MediaPipe
-  const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm");
+/**
+ * Calculate tweened elements between two frames
+ * INTERPOLATES ALL TRANSFORM PROPERTIES: x, y, width, height, rotation, opacity
+ *
+ * Special behavior:
+ *  - If a "ghost" element exists at (near) 0,0 in currentFrameElements and a matching element
+ *    exists in nextFrameElements, treat the ghost as the source for tweening into the match.
+ */
+export const tweenFrameElements = (
+  currentFrameElements: Element[],
+  nextFrameElements: Element[],
+  t: number, // 0 to 1, progress between frames
+  enableMotionBlur: boolean = true,
+): Element[] => {
+  const tweenedElements: Element[] = [];
+  const processedIds = new Set<string>();
 
-  const segmenter = await ImageSegmenter.createFromOptions(vision, {
-    baseOptions: {
-      modelAssetPath:
-        "https://storage.googleapis.com/mediapipe-models/image_segmenter/deeplab_v3/float32/1/deeplab_v3.tflite",
-      delegate: "GPU",
-    },
-    outputCategoryMask: true,
-  });
+  // Helper: detect ghost at or near (0,0)
+  const isGhost = (el: Element) => {
+    // treat very small or exact 0,0 as ghost; tweak threshold if needed
+    const nearZeroPos = Math.abs(el.x) < 4 && Math.abs(el.y) < 4;
+    const defaultSize = el.width <= 40 && el.height <= 40 ? true : false;
+    return nearZeroPos || defaultSize;
+  };
 
-  // Convert thumbnail image to ImageBitmap
-  const image = await createImageBitmap(await (await fetch(frame.thumbnail)).blob());
-
-  // Run segmentation
-  const result = segmenter.segment(image);
-
-  // The category mask (1 = person/subject, 0 = background)
-  const mask = result.categoryMask?.getAsUint8Array();
-
-  const width = image.width;
-  const height = image.height;
-
-  const off = new OffscreenCanvas(width, height);
-  const octx = off.getContext("2d")!;
-
-  // Draw original full image
-  octx.drawImage(image, 0, 0);
-
-  // Get pixel array
-  const imgData = octx.getImageData(0, 0, width, height);
-  const d = imgData.data;
-
-  // baseFrame = background only (subject removed)
-  const basePixels = new Uint8ClampedArray(d);
-  // element cutout
-  const subjectPixels = new Uint8ClampedArray(d);
-
-  for (let i = 0; i < d.length; i += 4) {
-    const m = mask ? mask[i / 4] : 0;
-
-    if (m === 1) {
-      // Background version should hide subject
-      basePixels[i + 3] = 0;
-    } else {
-      // Subject version should hide background
-      subjectPixels[i + 3] = 0;
-    }
+  // Build lookup maps for faster matching
+  const nextById = new Map(nextFrameElements.map((e) => [e.id, e]));
+  const nextByImageLabel = new Map<string, Element[]>();
+  for (const e of nextFrameElements) {
+    const key = `${e.label}::${e.image}`;
+    if (!nextByImageLabel.has(key)) nextByImageLabel.set(key, []);
+    nextByImageLabel.get(key)!.push(e);
   }
 
-  // Export base
-  const baseCanvas = new OffscreenCanvas(width, height);
-  baseCanvas.getContext("2d")!.putImageData(new ImageData(basePixels, width, height), 0, 0);
-  const baseFrameDataUrl = baseCanvas.convertToBlob({ type: "image/png" }).then(blobToDataURL);
+  // First pass: match elements with same id OR with ghost->target pairing
+  currentFrameElements.forEach((currentElement) => {
+    // try exact ID match
+    const exactMatch = nextById.get(currentElement.id);
+    if (exactMatch) {
+      processedIds.add(exactMatch.id);
+      processedIds.add(currentElement.id);
+      tweenedElements.push(tweenElement(currentElement, exactMatch, t, enableMotionBlur));
+      return;
+    }
 
-  // Export subject as single cutout element
-  const subjectCanvas = new OffscreenCanvas(width, height);
-  subjectCanvas.getContext("2d")!.putImageData(new ImageData(subjectPixels, width, height), 0, 0);
-  const subjectDataUrl = subjectCanvas.convertToBlob({ type: "image/png" }).then(blobToDataURL);
+    // If current is a ghost (at 0,0 or tiny), try to find a visually matching element in next frame
+    if (isGhost(currentElement)) {
+      const key = `${currentElement.label}::${currentElement.image}`;
+      const candidates = nextByImageLabel.get(key) || [];
 
-  return {
-    baseFrame: await baseFrameDataUrl,
-    elements: [
-      {
-        label: "subject",
-        image: await subjectDataUrl,
-        x: width * 0.25,
-        y: height * 0.25,
-      },
-    ],
-  };
-}
+      // choose best candidate (prefer unprocessed and non-ghost)
+      let chosen: Element | null = null;
+      for (const cand of candidates) {
+        if (!processedIds.has(cand.id)) {
+          chosen = cand;
+          break;
+        }
+      }
 
-async function blobToDataURL(blob: Blob | null): Promise<string> {
-  if (!blob) return "";
-  return await new Promise((resolve) => {
-    const r = new FileReader();
-    r.onloadend = () => resolve(r.result as string);
-    r.readAsDataURL(blob);
+      if (chosen) {
+        processedIds.add(chosen.id);
+        processedIds.add(currentElement.id);
+        // tween FROM the ghost -> TO the chosen element
+        tweenedElements.push(tweenElement(currentElement, chosen, t, enableMotionBlur));
+        return;
+      }
+    }
+
+    // Otherwise try looser similarity (same label AND similar image)
+    const similarKey = `${currentElement.label}::${currentElement.image}`;
+    const similarCandidates = nextByImageLabel.get(similarKey) || [];
+    if (similarCandidates.length > 0) {
+      const cand = similarCandidates.find((c) => !processedIds.has(c.id));
+      if (cand) {
+        processedIds.add(cand.id);
+        processedIds.add(currentElement.id);
+        tweenedElements.push(tweenElement(currentElement, cand, t, enableMotionBlur));
+        return;
+      }
+    }
+
+    // If no match found: element disappears (tween to 0 opacity)
+    tweenedElements.push({
+      ...currentElement,
+      opacity: lerp(currentElement.opacity, 0, t),
+    });
   });
-}
+
+  // Second pass: process new elements that only exist in next frame
+  nextFrameElements.forEach((nextElement) => {
+    if (processedIds.has(nextElement.id)) return;
+
+    // New element that didn't exist in current frame
+    // Try to find a ghost in the current frame that we didn't match earlier
+    const possibleGhost = currentFrameElements.find(
+      (e) => isGhost(e) && !processedIds.has(e.id) && e.label === nextElement.label && e.image === nextElement.image,
+    );
+    if (possibleGhost) {
+      // link ghost -> nextElement
+      processedIds.add(possibleGhost.id);
+      processedIds.add(nextElement.id);
+      tweenedElements.push(tweenElement(possibleGhost, nextElement, t, enableMotionBlur));
+      return;
+    }
+
+    // Otherwise treat it as a genuine newcomer: fade-in from opacity 0
+    tweenedElements.push({
+      ...nextElement,
+      opacity: nextElement.opacity * t,
+    });
+  });
+
+  return tweenedElements;
+};
