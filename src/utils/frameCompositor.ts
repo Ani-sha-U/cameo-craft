@@ -69,18 +69,23 @@ const drawBaseLayer = async (
 
 /**
  * Apply transform matrix to element
+ * Uses proper translate -> rotate -> scale order
  */
 const applyElementTransform = (
   ctx: CanvasRenderingContext2D,
-  element: Element
+  element: Element,
+  img: HTMLImageElement
 ): void => {
-  // Translate to element center for rotation
+  // Move to element position
   ctx.translate(element.x + element.width / 2, element.y + element.height / 2);
   
-  // Apply rotation
+  // Apply rotation around center
   ctx.rotate((element.rotation * Math.PI) / 180);
   
-  // Scale is implicit in width/height
+  // Scale based on element size vs original image size
+  const scaleX = element.width / img.width;
+  const scaleY = element.height / img.height;
+  ctx.scale(scaleX, scaleY);
 };
 
 /**
@@ -137,19 +142,20 @@ const drawElementLayer = async (
 
   ctx.save();
 
-  // Apply transform
-  applyElementTransform(ctx, element);
+  // Apply transform with proper scaling
+  applyElementTransform(ctx, element, img);
 
   // Apply effects
   applyElementEffects(ctx, element);
 
-  // Draw element centered on transform origin
+  // Draw element at origin (transforms already applied)
+  // Image is drawn at its original size, transforms handle scaling
   ctx.drawImage(
     img,
-    -element.width / 2,
-    -element.height / 2,
-    element.width,
-    element.height
+    -img.width / 2,
+    -img.height / 2,
+    img.width,
+    img.height
   );
 
   ctx.restore();

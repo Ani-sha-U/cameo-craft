@@ -124,10 +124,15 @@ export const FrameCanvas = ({
         elementImg.onload = () => {
           ctx.save();
           
-          // Apply transformations
+          // Apply transformations in correct order: translate -> rotate -> scale
           ctx.globalAlpha = element.opacity / 100;
           ctx.translate(element.x + element.width / 2, element.y + element.height / 2);
           ctx.rotate((element.rotation * Math.PI) / 180);
+          
+          // Scale based on element size vs original image size
+          const scaleX = element.width / elementImg.width;
+          const scaleY = element.height / elementImg.height;
+          ctx.scale(scaleX, scaleY);
           
           // Apply filters with motion blur
           const filters = [];
@@ -149,22 +154,22 @@ export const FrameCanvas = ({
               ctx.translate(-offsetX, -offsetY);
               ctx.drawImage(
                 elementImg,
-                -element.width / 2,
-                -element.height / 2,
-                element.width,
-                element.height
+                -elementImg.width / 2,
+                -elementImg.height / 2,
+                elementImg.width,
+                elementImg.height
               );
               ctx.restore();
             }
           }
           
-          // Draw main image
+          // Draw main image at original size (scaling handled by ctx.scale)
           ctx.drawImage(
             elementImg,
-            -element.width / 2,
-            -element.height / 2,
-            element.width,
-            element.height
+            -elementImg.width / 2,
+            -elementImg.height / 2,
+            elementImg.width,
+            elementImg.height
           );
           
           ctx.restore();

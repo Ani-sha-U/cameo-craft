@@ -169,9 +169,20 @@ export const tweenFrameElements = (
   // Process new elements that only exist in next frame
   for (const nextElement of nextFrameElements) {
     if (!usedNextIds.has(nextElement.id)) {
-      // New element appearing: add as-is (don't fade in)
-      // In a proper timeline, these would have explicit keyframes
-      tweenedElements.push({ ...nextElement, opacity: nextElement.opacity * t });
+      // Treat element as "ghost" starting at (0,0) with small size
+      // and tween it to the final position/size
+      const ghostElement: Element = {
+        ...nextElement,
+        x: 0,
+        y: 0,
+        width: nextElement.width * 0.1,
+        height: nextElement.height * 0.1,
+        opacity: 0,
+      };
+      
+      // Tween from ghost to actual element
+      const tweenedNewElement = tweenElement(ghostElement, nextElement, t, enableMotionBlur);
+      tweenedElements.push(tweenedNewElement);
     }
   }
 

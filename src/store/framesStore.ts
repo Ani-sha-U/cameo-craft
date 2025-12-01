@@ -72,9 +72,11 @@ export const useFramesStore = create<FramesStore>((set, get) => ({
       ),
     }));
     
-    // Add to history
-    const { addToHistory } = require('./editorStore').useEditorStore.getState();
-    addToHistory({ frames: get().frames });
+    // Add to history (dynamic import to avoid circular dependency)
+    import('./editorStore').then(({ useEditorStore }) => {
+      const { addToHistory } = useEditorStore.getState();
+      addToHistory({ frames: get().frames });
+    });
   },
 
   updateFrameCanvasState: (frameId, canvasState) => {
