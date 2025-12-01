@@ -113,26 +113,27 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
         easing: 'linear',
       }));
 
-      // Update frame with masked thumbnail if frameId provided
+      // Update frame with masked base frame and elements if frameId provided
       if (frameId) {
         const framesStore = useFramesStore.getState();
         const frame = framesStore.frames.find((f) => f.id === frameId);
         
         if (frame) {
-          // CRITICAL: Replace existing elements to prevent duplicates
-          const updatedFrame = {
-            ...frame,
-            maskedThumbnail: result.maskedFrame,
-            elements: newElements // Replace, don't append
-          };
-          
-          framesStore.updateFrameElements(frameId, newElements);
-          
-          // Also update maskedThumbnail
+          // Update frame with masked base frame (background without extracted elements)
+          // This is what the compositor will use as the base layer
           const updatedFrames = framesStore.frames.map((f) => 
-            f.id === frameId ? { ...f, maskedThumbnail: result.maskedFrame } : f
+            f.id === frameId 
+              ? { 
+                  ...f, 
+                  baseFrame: result.maskedFrame, // Use masked frame as base for rendering
+                  maskedThumbnail: result.maskedFrame,
+                  elements: newElements // Replace elements (no duplicates)
+                } 
+              : f
           );
+          
           framesStore.addFrames(updatedFrames);
+          framesStore.updateFrameElements(frameId, newElements);
         }
         
         set({ isProcessing: false });

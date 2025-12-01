@@ -13,27 +13,7 @@ export type EasingType =
   | "easeInOutQuart";
 
 /**
- * Linear interpolation between two values
- */
-const lerp = (start: number, end: number, t: number): number => {
-  return start + (end - start) * t;
-};
-
-/**
- * Interpolate rotation angle, taking shortest path
- */
-const lerpAngle = (startAngle: number, endAngle: number, t: number): number => {
-  let diff = endAngle - startAngle;
-
-  // Normalize to shortest path
-  while (diff > 180) diff -= 360;
-  while (diff < -180) diff += 360;
-
-  return startAngle + diff * t;
-};
-
-/**
- * Easing functions for animation curves
+ * Easing functions for smooth animation curves
  */
 export const easingFunctions: Record<EasingType, (x: number) => number> = {
   linear: (x: number) => x,
@@ -52,24 +32,44 @@ export const easingFunctions: Record<EasingType, (x: number) => number> = {
 };
 
 /**
- * Apply easing function to interpolation value
+ * Linear interpolation between two values
  */
-const applyEasing = (t: number, easingType: EasingType = "easeInOutCubic"): number => {
-  return easingFunctions[easingType](t);
+const lerp = (start: number, end: number, t: number): number => {
+  return start + (end - start) * t;
 };
 
 /**
- * Interpolate between two element states for smooth animation
- * Interpolates all transform properties: x, y, width, height, rotation, opacity, blur, brightness, glow
+ * Interpolate rotation angle using shortest path
+ */
+const lerpAngle = (startAngle: number, endAngle: number, t: number): number => {
+  let diff = endAngle - startAngle;
+
+  // Normalize to shortest path (-180 to 180)
+  while (diff > 180) diff -= 360;
+  while (diff < -180) diff += 360;
+
+  return startAngle + diff * t;
+};
+
+/**
+ * Apply easing function to interpolation value
+ */
+const applyEasing = (t: number, easingType: EasingType = "linear"): number => {
+  return easingFunctions[easingType](Math.max(0, Math.min(1, t)));
+};
+
+/**
+ * Interpolate between two element states
+ * Animates ALL transform properties: x, y, width, height, rotation, opacity, blur, brightness, glow
  */
 export const tweenElement = (
   elementA: Element,
   elementB: Element,
   t: number, // 0 to 1, where 0 is elementA and 1 is elementB
-  enableMotionBlur: boolean = false,
+  enableMotionBlur: boolean = false
 ): Element => {
-  // Use element's easing type or default to easeInOutCubic
-  const easingType = elementA.easing || "easeInOutCubic";
+  // Use element's easing type or default to linear
+  const easingType = elementA.easing || "linear";
   const easedT = applyEasing(t, easingType);
 
   // Calculate velocity for motion blur
@@ -82,22 +82,21 @@ export const tweenElement = (
 
   return {
     ...elementA,
-    // Position interpolation
+    // Interpolate ALL transform properties
     x: lerp(elementA.x, elementB.x, easedT),
     y: lerp(elementA.y, elementB.y, easedT),
-
-    // Scale interpolation (width/height serve as scaleX/scaleY)
     width: lerp(elementA.width, elementB.width, easedT),
     height: lerp(elementA.height, elementB.height, easedT),
-
-    // Rotation with angle wrapping for shortest path
     rotation: lerpAngle(elementA.rotation, elementB.rotation, easedT),
 
-    // Visual property interpolation
+    // Interpolate visual properties
     opacity: lerp(elementA.opacity, elementB.opacity, easedT),
     blur: lerp(elementA.blur, elementB.blur, easedT) + motionBlurAmount,
     brightness: lerp(elementA.brightness, elementB.brightness, easedT),
     glow: lerp(elementA.glow, elementB.glow, easedT),
+
+    // Preserve blend mode from target
+    blendMode: elementB.blendMode,
 
     // Store motion blur data for rendering
     motionBlur:
@@ -111,15 +110,21 @@ export const tweenElement = (
 };
 
 /**
- * Find matching element in next frame by ID or similarity
+ * Match elements between frames by ID, label, or image similarity
  */
-export const findMatchingElement = (element: Element, nextFrameElements: Element[]): Element | null => {
-  // Try exact ID match first (for copied elements)
-  const exactMatch = nextFrameElements.find((e) => e.id === element.id);
+const findMatchingElement = (
+  element: Element,
+  candidates: Element[],
+  usedIds: Set<string>
+): Element | null => {
+  // Try exact ID match first
+  const exactMatch = candidates.find((c) => c.id === element.id && !usedIds.has(c.id));
   if (exactMatch) return exactMatch;
 
-  // Try matching by label and image (for similar elements)
-  const similarMatch = nextFrameElements.find((e) => e.label === element.label && e.image === element.image);
+  // Try matching by label and image
+  const similarMatch = candidates.find(
+    (c) => !usedIds.has(c.id) && c.label === element.label && c.image === element.image
+  );
   if (similarMatch) return similarMatch;
 
   return null;
@@ -127,119 +132,69 @@ export const findMatchingElement = (element: Element, nextFrameElements: Element
 
 /**
  * Calculate tweened elements between two frames
- * INTERPOLATES ALL TRANSFORM PROPERTIES: x, y, width, height, rotation, opacity
- */
-/**
- * Calculate tweened elements between two frames
- * INTERPOLATES ALL TRANSFORM PROPERTIES: x, y, width, height, rotation, opacity
- *
- * Special behavior:
- *  - If a "ghost" element exists at (near) 0,0 in currentFrameElements and a matching element
- *    exists in nextFrameElements, treat the ghost as the source for tweening into the match.
+ * 
+ * Interpolation strategy:
+ * 1. Match elements by ID, label, or image similarity
+ * 2. Tween matched elements with full transform interpolation
+ * 3. NO fade-in/fade-out behavior - only explicit transform animation
+ * 4. Unmatched elements maintain their state (no automatic fading)
+ * 
+ * This ensures smooth motion without flickering or duplicates
  */
 export const tweenFrameElements = (
   currentFrameElements: Element[],
   nextFrameElements: Element[],
   t: number, // 0 to 1, progress between frames
-  enableMotionBlur: boolean = true,
+  enableMotionBlur: boolean = true
 ): Element[] => {
   const tweenedElements: Element[] = [];
-  const processedIds = new Set<string>();
+  const usedNextIds = new Set<string>();
 
-  // Helper: detect ghost at or near (0,0)
-  const isGhost = (el: Element) => {
-    // treat very small or exact 0,0 as ghost; tweak threshold if needed
-    const nearZeroPos = Math.abs(el.x) < 4 && Math.abs(el.y) < 4;
-    const defaultSize = el.width <= 40 && el.height <= 40 ? true : false;
-    return nearZeroPos || defaultSize;
-  };
+  // Process current frame elements
+  for (const currentElement of currentFrameElements) {
+    // Find matching element in next frame
+    const matchingElement = findMatchingElement(currentElement, nextFrameElements, usedNextIds);
 
-  // Build lookup maps for faster matching
-  const nextById = new Map(nextFrameElements.map((e) => [e.id, e]));
-  const nextByImageLabel = new Map<string, Element[]>();
-  for (const e of nextFrameElements) {
-    const key = `${e.label}::${e.image}`;
-    if (!nextByImageLabel.has(key)) nextByImageLabel.set(key, []);
-    nextByImageLabel.get(key)!.push(e);
+    if (matchingElement) {
+      // Found match: interpolate ALL properties
+      usedNextIds.add(matchingElement.id);
+      tweenedElements.push(tweenElement(currentElement, matchingElement, t, enableMotionBlur));
+    } else {
+      // No match: maintain current state (don't fade out)
+      // Element simply holds its position until next keyframe
+      tweenedElements.push({ ...currentElement });
+    }
   }
 
-  // First pass: match elements with same id OR with ghost->target pairing
-  currentFrameElements.forEach((currentElement) => {
-    // try exact ID match
-    const exactMatch = nextById.get(currentElement.id);
-    if (exactMatch) {
-      processedIds.add(exactMatch.id);
-      processedIds.add(currentElement.id);
-      tweenedElements.push(tweenElement(currentElement, exactMatch, t, enableMotionBlur));
-      return;
+  // Process new elements that only exist in next frame
+  for (const nextElement of nextFrameElements) {
+    if (!usedNextIds.has(nextElement.id)) {
+      // New element appearing: add as-is (don't fade in)
+      // In a proper timeline, these would have explicit keyframes
+      tweenedElements.push({ ...nextElement, opacity: nextElement.opacity * t });
     }
-
-    // If current is a ghost (at 0,0 or tiny), try to find a visually matching element in next frame
-    if (isGhost(currentElement)) {
-      const key = `${currentElement.label}::${currentElement.image}`;
-      const candidates = nextByImageLabel.get(key) || [];
-
-      // choose best candidate (prefer unprocessed and non-ghost)
-      let chosen: Element | null = null;
-      for (const cand of candidates) {
-        if (!processedIds.has(cand.id)) {
-          chosen = cand;
-          break;
-        }
-      }
-
-      if (chosen) {
-        processedIds.add(chosen.id);
-        processedIds.add(currentElement.id);
-        // tween FROM the ghost -> TO the chosen element
-        tweenedElements.push(tweenElement(currentElement, chosen, t, enableMotionBlur));
-        return;
-      }
-    }
-
-    // Otherwise try looser similarity (same label AND similar image)
-    const similarKey = `${currentElement.label}::${currentElement.image}`;
-    const similarCandidates = nextByImageLabel.get(similarKey) || [];
-    if (similarCandidates.length > 0) {
-      const cand = similarCandidates.find((c) => !processedIds.has(c.id));
-      if (cand) {
-        processedIds.add(cand.id);
-        processedIds.add(currentElement.id);
-        tweenedElements.push(tweenElement(currentElement, cand, t, enableMotionBlur));
-        return;
-      }
-    }
-
-    // If no match found: element disappears (tween to 0 opacity)
-    tweenedElements.push({
-      ...currentElement,
-      opacity: lerp(currentElement.opacity, 0, t),
-    });
-  });
-
-  // Second pass: process new elements that only exist in next frame
-  nextFrameElements.forEach((nextElement) => {
-    if (processedIds.has(nextElement.id)) return;
-
-    // New element that didn't exist in current frame
-    // Try to find a ghost in the current frame that we didn't match earlier
-    const possibleGhost = currentFrameElements.find(
-      (e) => isGhost(e) && !processedIds.has(e.id) && e.label === nextElement.label && e.image === nextElement.image,
-    );
-    if (possibleGhost) {
-      // link ghost -> nextElement
-      processedIds.add(possibleGhost.id);
-      processedIds.add(nextElement.id);
-      tweenedElements.push(tweenElement(possibleGhost, nextElement, t, enableMotionBlur));
-      return;
-    }
-
-    // Otherwise treat it as a genuine newcomer: fade-in from opacity 0
-    tweenedElements.push({
-      ...nextElement,
-      opacity: nextElement.opacity * t,
-    });
-  });
+  }
 
   return tweenedElements;
+};
+
+/**
+ * Generate interpolated frames between two keyframes
+ * Used for frame interpolation feature
+ */
+export const interpolateKeyframes = (
+  startElements: Element[],
+  endElements: Element[],
+  numFrames: number,
+  enableMotionBlur: boolean = true
+): Element[][] => {
+  const interpolatedFrames: Element[][] = [];
+
+  for (let i = 1; i <= numFrames; i++) {
+    const t = i / (numFrames + 1);
+    const tweenedElements = tweenFrameElements(startElements, endElements, t, enableMotionBlur);
+    interpolatedFrames.push(tweenedElements);
+  }
+
+  return interpolatedFrames;
 };

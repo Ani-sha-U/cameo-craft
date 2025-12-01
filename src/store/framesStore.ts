@@ -3,7 +3,8 @@ import { Element } from './elementsStore';
 
 export interface Frame {
   id: string;
-  thumbnail: string; // base64 image data
+  thumbnail: string; // base64 image data (original frame)
+  baseFrame?: string; // masked base frame WITHOUT extracted elements (use this for rendering)
   maskedThumbnail?: string; // thumbnail with extracted elements removed (transparent)
   timestamp: number; // in seconds
   elements: Element[]; // elements on this frame

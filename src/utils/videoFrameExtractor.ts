@@ -33,7 +33,16 @@ export async function extractFramesFromVideo({
       const duration = video.duration;
 
       // Auto-detect FPS if not provided (AI videos are usually 24–30 fps)
-      const fps = framesPerSecond || Math.min(30, Math.round(video.webkitDecodedFrameCount / duration) || 30);
+      // Use browser-specific properties when available
+      const detectedFps = (() => {
+        const webkitVideo = video as HTMLVideoElement & { webkitDecodedFrameCount?: number };
+        if (webkitVideo.webkitDecodedFrameCount !== undefined && webkitVideo.webkitDecodedFrameCount > 0) {
+          return Math.round(webkitVideo.webkitDecodedFrameCount / duration);
+        }
+        return 30; // Default fallback
+      })();
+      
+      const fps = framesPerSecond || Math.min(30, detectedFps);
 
       const totalFrames = Math.min(Math.floor(duration * fps), maxFrames);
 
