@@ -5,6 +5,7 @@ import { useFramesStore } from '@/store/framesStore';
 
 export interface Element {
   id: string;
+  sourceElementId?: string; // Tracks original element for animation continuity
   label: string;
   image: string;
   x: number;

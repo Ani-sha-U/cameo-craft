@@ -49,6 +49,17 @@ export const FrameInterpolationDialog = () => {
           <DialogTitle>Frame Interpolation</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
+          {/* Workflow guidance */}
+          <div className="bg-muted/50 rounded-lg p-3 text-xs space-y-1.5">
+            <p className="font-medium text-foreground">How to animate elements:</p>
+            <ol className="list-decimal list-inside text-muted-foreground space-y-1">
+              <li>Separate elements in the <strong>start frame</strong></li>
+              <li>Drag/copy element to the <strong>end frame</strong></li>
+              <li>Resize/rotate/move element in end frame</li>
+              <li>Click Generate to create smooth motion</li>
+            </ol>
+          </div>
+
           <div>
             <Label>Start Frame (Keyframe)</Label>
             <Select value={startFrameId} onValueChange={setStartFrameId}>

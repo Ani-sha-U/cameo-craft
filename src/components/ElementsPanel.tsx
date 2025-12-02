@@ -57,9 +57,11 @@ export const ElementsPanel = () => {
     }
 
     const nextFrame = frames[currentIndex + 1];
+    // Preserve sourceElementId for animation continuity
     const newElement = {
       ...element,
       id: `${element.id}_copy_${Date.now()}`,
+      sourceElementId: element.sourceElementId || element.id,
     };
 
     updateFrameElements(nextFrame.id, [...nextFrame.elements, newElement]);
@@ -78,9 +80,11 @@ export const ElementsPanel = () => {
     let copiedCount = 0;
     frames.forEach((frame) => {
       if (frame.id !== selectedFrameId) {
+        // Preserve sourceElementId for animation continuity
         const newElement = {
           ...element,
           id: `${element.id}_copy_${frame.id}_${Date.now()}`,
+          sourceElementId: element.sourceElementId || element.id,
         };
         updateFrameElements(frame.id, [...frame.elements, newElement]);
         copiedCount++;

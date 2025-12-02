@@ -110,18 +110,34 @@ export const tweenElement = (
 };
 
 /**
- * Match elements between frames by ID, label, or image similarity
+ * Match elements between frames by sourceElementId, ID, label, or image similarity
+ * Priority: 1. sourceElementId match, 2. exact ID, 3. label+image similarity
  */
 const findMatchingElement = (
   element: Element,
   candidates: Element[],
   usedIds: Set<string>
 ): Element | null => {
-  // Try exact ID match first
+  // Priority 1: Match by sourceElementId (for copied/dragged elements)
+  if (element.sourceElementId) {
+    const sourceMatch = candidates.find(
+      (c) => !usedIds.has(c.id) && 
+        (c.sourceElementId === element.sourceElementId || c.id === element.sourceElementId)
+    );
+    if (sourceMatch) return sourceMatch;
+  }
+
+  // Also check if candidate has sourceElementId pointing to this element
+  const reverseSourceMatch = candidates.find(
+    (c) => !usedIds.has(c.id) && c.sourceElementId === element.id
+  );
+  if (reverseSourceMatch) return reverseSourceMatch;
+
+  // Priority 2: Try exact ID match
   const exactMatch = candidates.find((c) => c.id === element.id && !usedIds.has(c.id));
   if (exactMatch) return exactMatch;
 
-  // Try matching by label and image
+  // Priority 3: Try matching by label and image (same visual element)
   const similarMatch = candidates.find(
     (c) => !usedIds.has(c.id) && c.label === element.label && c.image === element.image
   );
@@ -167,22 +183,13 @@ export const tweenFrameElements = (
   }
 
   // Process new elements that only exist in next frame
+  // These elements have no match in start frame, so just show them at full state
+  // NO ghost-from-origin behavior - elements should be placed in both frames for animation
   for (const nextElement of nextFrameElements) {
     if (!usedNextIds.has(nextElement.id)) {
-      // Treat element as "ghost" starting at (0,0) with small size
-      // and tween it to the final position/size
-      const ghostElement: Element = {
-        ...nextElement,
-        x: 0,
-        y: 0,
-        width: nextElement.width * 0.1,
-        height: nextElement.height * 0.1,
-        opacity: 0,
-      };
-      
-      // Tween from ghost to actual element
-      const tweenedNewElement = tweenElement(ghostElement, nextElement, t, enableMotionBlur);
-      tweenedElements.push(tweenedNewElement);
+      // Element only exists in end frame - show at full opacity/size at its position
+      // User must place element in start frame for animation to occur
+      tweenedElements.push({ ...nextElement });
     }
   }
 
