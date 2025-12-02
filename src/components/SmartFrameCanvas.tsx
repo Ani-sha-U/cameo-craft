@@ -94,14 +94,17 @@ export const SmartFrameCanvas = ({ className }: SmartFrameCanvasProps) => {
           }
         }
         
+        // Update ref BEFORE selecting frame to fix race condition
+        currentIndexRef.current = nextIndex;
+        
         // Advance to next frame
         selectFrame(frames[nextIndex].id);
         
         // Reset timer for next frame
         lastFrameTimeRef.current = timestamp - (elapsed - frameDuration);
         
-        // Clear tweening when advancing
-        setTweenedElements(undefined);
+        // DON'T clear tweening - let next iteration calculate it
+        // This prevents flash of no elements between frames
       } else {
         // Calculate smooth interpolation progress between frames
         const progress = elapsed / frameDuration;

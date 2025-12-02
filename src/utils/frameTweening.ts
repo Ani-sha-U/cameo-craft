@@ -187,14 +187,15 @@ export const tweenFrameElements = (
   // This creates the "ghost-from-origin" animation effect the user wants
   for (const nextElement of nextFrameElements) {
     if (!usedNextIds.has(nextElement.id)) {
-      // Create ghost start state at origin with small size and 0 opacity
+      // Create ghost start state at origin with small size but VISIBLE opacity
+      // Start at 30% opacity so element is visible during entire tween
       const ghostStart: Element = {
         ...nextElement,
         x: 0,
         y: 0,
         width: 50, // Small starting size
         height: 50,
-        opacity: 0,
+        opacity: 30, // Start visible (30%) and animate to target opacity
         rotation: 0,
       };
       
