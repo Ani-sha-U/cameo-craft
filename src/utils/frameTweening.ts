@@ -183,13 +183,23 @@ export const tweenFrameElements = (
   }
 
   // Process new elements that only exist in next frame
-  // These elements have no match in start frame, so just show them at full state
-  // NO ghost-from-origin behavior - elements should be placed in both frames for animation
+  // These elements animate FROM origin (0,0) with small size TO their final position
+  // This creates the "ghost-from-origin" animation effect the user wants
   for (const nextElement of nextFrameElements) {
     if (!usedNextIds.has(nextElement.id)) {
-      // Element only exists in end frame - show at full opacity/size at its position
-      // User must place element in start frame for animation to occur
-      tweenedElements.push({ ...nextElement });
+      // Create ghost start state at origin with small size and 0 opacity
+      const ghostStart: Element = {
+        ...nextElement,
+        x: 0,
+        y: 0,
+        width: 50, // Small starting size
+        height: 50,
+        opacity: 0,
+        rotation: 0,
+      };
+      
+      // Tween from ghost origin to actual position
+      tweenedElements.push(tweenElement(ghostStart, nextElement, t, enableMotionBlur));
     }
   }
 

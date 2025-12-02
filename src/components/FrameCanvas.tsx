@@ -37,12 +37,13 @@ export const FrameCanvas = ({
     // Use tweened elements if provided, otherwise use frame elements
     const elementsToRender = tweenedElements || currentFrame.elements;
 
-    // Use masked thumbnail if available, otherwise use original
-    const frameImageSrc = currentFrame.maskedThumbnail || currentFrame.thumbnail;
+    // ALWAYS use the original thumbnail as background (not maskedThumbnail)
+    // The masked version was making the background transparent where elements were extracted
+    const frameImageSrc = currentFrame.thumbnail;
     
-    // CRITICAL: Determine which image to use - preloaded for originals, fresh load for masked
+    // Use preloaded image for faster rendering
     const preloadedImg = preloadedFrames.get(currentFrame.id);
-    const usePreloaded = preloadedImg && preloadedImg.complete && !currentFrame.maskedThumbnail;
+    const usePreloaded = preloadedImg && preloadedImg.complete;
     
     // Single render function to ensure consistent draw order
     const renderFrame = (frameImg: HTMLImageElement) => {
