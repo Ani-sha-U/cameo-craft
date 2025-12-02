@@ -49,7 +49,8 @@ const loadImage = (src: string): Promise<HTMLImageElement> => {
 };
 
 /**
- * Draw base frame layer (background without extracted elements)
+ * Draw base frame layer
+ * ALWAYS use original thumbnail to keep background intact
  */
 const drawBaseLayer = async (
   ctx: CanvasRenderingContext2D,
@@ -57,8 +58,8 @@ const drawBaseLayer = async (
   width: number,
   height: number
 ): Promise<void> => {
-  // Use masked base frame if available, otherwise use original thumbnail
-  const baseImageSrc = frame.baseFrame || frame.maskedThumbnail || frame.thumbnail;
+  // ALWAYS use original thumbnail - maskedThumbnail has transparent areas
+  const baseImageSrc = frame.thumbnail;
   const baseImg = await loadImage(baseImageSrc);
   
   ctx.save();
