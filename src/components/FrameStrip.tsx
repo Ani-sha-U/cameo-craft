@@ -23,9 +23,12 @@ export const FrameStrip = () => {
     
     if (!frame) return;
 
+    // Preserve sourceElementId for animation continuity
+    // If element already has sourceElementId, keep it; otherwise use its id as source
     const newElement = {
       ...element,
       id: `${element.id}_frame_${frameId}_${Date.now()}`,
+      sourceElementId: element.sourceElementId || element.id,
       x: 50,
       y: 50,
     };
